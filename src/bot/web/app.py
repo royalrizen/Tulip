@@ -2,7 +2,13 @@ import os
 from threading import Thread
 from flask import Flask, render_template
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATE_DIR = os.path.join(BASE_DIR, "web", "templates")
+
+app = Flask(
+    __name__,
+    template_folder=TEMPLATE_DIR,
+)
 
 @app.route("/")
 def index():
