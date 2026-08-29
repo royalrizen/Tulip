@@ -100,7 +100,7 @@ class VerificationView(discord.ui.LayoutView):
     ):
         responses = [
             "Please read the above message carefully lol.",
-            "Shut the fuck up",
+            "Shut up xd",
             "Only for friends!",
             "Be patient.",
             "I don't like you. jkkk",
@@ -128,9 +128,9 @@ class VerificationView(discord.ui.LayoutView):
 
         count = self.ping_counts.get(key, 0)
 
-        if count >= 2:
+        if count >= 5:
             await interaction.response.send_message(
-                "You've already pinged Rizen twice.",
+                "You've already pinged Rizen several times.",
                 ephemeral=True,
             )
             return
@@ -160,8 +160,8 @@ class VerificationView(discord.ui.LayoutView):
 
         try:
             message = await interaction.channel.send(
-                f"{owner.mention}, "
-                f"||{interaction.user.mention} is asking for you.||"
+                f"||{owner.mention}||, "
+                f"{interaction.user.mention} is asking for you."
             )
         except (
             discord.Forbidden,
