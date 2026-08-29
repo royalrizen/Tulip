@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Velouré</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                Roboto, Helvetica, Arial, sans-serif;
+
+            background:
+                radial-gradient(
+                    circle at 15% 15%,
+                    rgba(117, 78, 91, 0.14),
+                    transparent 32%
+                ),
+                radial-gradient(
+                    circle at 85% 85%,
+                    rgba(91, 65, 105, 0.13),
+                    transparent 32%
+                ),
+                #f3e8dc;
+
+            color: #3b2c2c;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            padding: 28px 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 720px;
+            text-align: center;
+        }
+
+        .flower {
+            width: 68px;
+            height: 68px;
+
+            margin: 0 auto 22px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 20px;
+
+            background: rgba(255, 255, 255, 0.48);
+            border: 1px solid rgba(94, 65, 60, 0.10);
+
+            font-size: 31px;
+
+            box-shadow:
+                0 12px 35px rgba(76, 53, 46, 0.10),
+                inset 0 1px rgba(255, 255, 255, 0.8);
+        }
+
+        .brand {
+            font-size: 13px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+
+            color: #765568;
+
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-family: Georgia, "Times New Roman", serif;
+
+            font-size: clamp(48px, 10vw, 78px);
+            font-weight: 500;
+            letter-spacing: -3px;
+
+            color: #493436;
+
+            margin-bottom: 14px;
+        }
+
+        .subtitle {
+            max-width: 570px;
+            margin: 0 auto 38px;
+
+            color: #725f5a;
+
+            font-size: 17px;
+            line-height: 1.75;
+        }
+
+        .subtitle strong {
+            color: #69475d;
+        }
+
+        .card {
+            text-align: left;
+
+            padding: 30px;
+
+            border-radius: 24px;
+
+            background: rgba(255, 250, 245, 0.62);
+            border: 1px solid rgba(92, 63, 56, 0.10);
+
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+
+            box-shadow:
+                0 25px 70px rgba(83, 59, 51, 0.12);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+
+            margin-bottom: 19px;
+        }
+
+        .status {
+            width: 9px;
+            height: 9px;
+
+            border-radius: 50%;
+
+            background: #765568;
+
+            box-shadow:
+                0 0 12px rgba(118, 85, 104, 0.45);
+        }
+
+        .card h2 {
+            font-size: 20px;
+            font-weight: 600;
+
+            color: #493638;
+        }
+
+        .card p {
+            color: #705f5b;
+
+            font-size: 15px;
+            line-height: 1.85;
+        }
+
+        .card strong {
+            color: #69475d;
+            font-weight: 600;
+        }
+
+        .divider {
+            height: 1px;
+
+            margin: 25px 0;
+
+            background: rgba(92, 63, 56, 0.10);
+        }
+
+        .invite {
+            margin-top: 27px;
+
+            font-family: Georgia, "Times New Roman", serif;
+
+            font-size: 21px;
+            line-height: 1.6;
+
+            color: #52383e;
+        }
+
+        .invite span {
+            color: #765568;
+        }
+
+        footer {
+            margin-top: 26px;
+
+            font-size: 13px;
+            color: #967f78;
+        }
+
+        footer span {
+            color: #765568;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 22px 16px;
+            }
+
+            .card {
+                padding: 23px;
+            }
+
+            .subtitle {
+                font-size: 15px;
+            }
+
+            .invite {
+                font-size: 19px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="container">
+
+        <div class="flower">🌷</div>
+
+        <div class="brand">A little corner on Discord</div>
+
+        <h1>Velouré</h1>
+
+        <p class="subtitle">
+            You know me? Then you probably know what you're getting into.
+            <strong>Come on in.</strong>
+        </p>
+
+        <section class="card">
+
+            <div class="card-header">
+                <div class="status"></div>
+                <h2>so, what's this place?</h2>
+            </div>
+
+            <p>
+                Velouré is just a small space for me,
+                <strong>@royalrizen</strong>, to hang out with some
+                close Discord friends, mess around, talk absolute nonsense,
+                and have a good time.
+            </p>
+
+            <div class="divider"></div>
+
+            <p>
+                There aren't a million rules here. Conversations can get
+                pretty unfiltered, opinions are welcome, and honestly,
+                it might not be everyone's cup of tea.
+            </p>
+
+            <div class="divider"></div>
+
+            <p>
+                If you've known me for a while and think you'd fit in,
+                you're more than welcome to knock on the door.
+            </p>
+
+            <p class="invite">
+                
+               
+                <span>https://discord.gg/aW5zZ2D72e ♡</span>
+            </p>
+
+        </section>
+
+        <footer>
+            made with <span>♡</span> for the little circle
+        </footer>
+
+    </main>
+
+</body>
+</html>

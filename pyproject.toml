@@ -1,0 +1,19 @@
+[project]
+name = "tulip"
+version = "0.1.0"
+description = "A Discord bot made for the Velouré Discord server"
+requires-python = ">=3.11"
+
+dependencies = [
+    "discord.py",
+    "python-dotenv",
+    "aiomysql",
+    "cryptography",
+    "Flask",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+tulip = "bot.__main__:main"
