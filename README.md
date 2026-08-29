@@ -42,8 +42,13 @@ PREFIX=!
 
 Render keeps these values separate from your source code, so you don't need to put secrets inside the repository. 🌱
 
+**$Build Command** `pip install e` | **$Start Command** `tulip`
+
+<br>
+
 > [!NOTE]
-> You'll need a MySQL database that your Render service can connect to. Make sure the database allows connections from your Render service.
+> 1. You'll need a MySQL database that your Render service can connect to. Make sure the database allows connections from your Render service.
+> 2. If you wish to keep the free tier active 24/7 then create a [cron job](https://cron-job.org/en/) and ping the web server's health endpoint. For example - `https://your-bot.onrender.com/health`
 
 ## 🏃 Running Tulip locally
 
