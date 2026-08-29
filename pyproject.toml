@@ -15,5 +15,8 @@ dependencies = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"bot.web" = ["templates/*.html"]
+
 [project.scripts]
 tulip = "bot.__main__:main"
