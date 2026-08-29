@@ -56,7 +56,7 @@ Clone the repository:
 
 ```bash
 git clone https://github.com/royalrizen/Tulip.git
-cd tulip
+cd Tulip
 ```
 
 Locate the project folder, then install the package using:
