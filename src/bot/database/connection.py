@@ -19,6 +19,10 @@ class Database:
         self.pool: aiomysql.Pool | None = None
 
     async def connect(self):
+        if self.pool:
+            self.pool.close()
+            await self.pool.wait_closed()
+
         self.pool = await aiomysql.create_pool(
             host=self.host,
             port=self.port,
@@ -32,30 +36,76 @@ class Database:
         if self.pool:
             self.pool.close()
             await self.pool.wait_closed()
+            self.pool = None
 
-    async def execute(self, query: str, *args):
+    async def execute(
+        self,
+        query: str,
+        *args,
+    ):
+        if self.pool is None:
+            raise RuntimeError(
+                "Database is not connected."
+            )
+
         async with self.pool.acquire() as connection:
             async with connection.cursor() as cursor:
-                await cursor.execute(query, args)
+                await cursor.execute(
+                    query,
+                    args,
+                )
 
-    async def fetchone(self, query: str, *args):
+    async def fetchone(
+        self,
+        query: str,
+        *args,
+    ):
+        if self.pool is None:
+            raise RuntimeError(
+                "Database is not connected."
+            )
+
         async with self.pool.acquire() as connection:
             async with connection.cursor(
                 aiomysql.DictCursor
             ) as cursor:
-                await cursor.execute(query, args)
+                await cursor.execute(
+                    query,
+                    args,
+                )
+
                 return await cursor.fetchone()
 
-    async def fetchall(self, query: str, *args):
+    async def fetchall(
+        self,
+        query: str,
+        *args,
+    ):
+        if self.pool is None:
+            raise RuntimeError(
+                "Database is not connected."
+            )
+
         async with self.pool.acquire() as connection:
             async with connection.cursor(
                 aiomysql.DictCursor
             ) as cursor:
-                await cursor.execute(query, args)
+                await cursor.execute(
+                    query,
+                    args,
+                )
+
                 return await cursor.fetchall()
 
-    async def fetchval(self, query: str, *args):
-        row = await self.fetchone(query, *args)
+    async def fetchval(
+        self,
+        query: str,
+        *args,
+    ):
+        row = await self.fetchone(
+            query,
+            *args,
+        )
 
         if row is None:
             return None
