@@ -42,7 +42,7 @@ PREFIX=!
 
 Render keeps these values separate from your source code, so you don't need to put secrets inside the repository. 🌱
 
-**$Build Command** `pip install e` | **$Start Command** `tulip`
+**$Build Command** `pip install -e .` | **$Start Command** `tulip`
 
 <br>
 
