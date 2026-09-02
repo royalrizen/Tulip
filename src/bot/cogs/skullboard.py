@@ -1,4 +1,5 @@
 import io
+import re
 
 import discord
 
@@ -673,6 +674,17 @@ class Skullboard(
             or interaction.user.guild_permissions.administrator
         )
 
+    @staticmethod
+    def sanitize_content(
+        content: str,
+    ) -> str:
+        """Remove Discord mention tokens from Skullboard content."""
+        return re.sub(
+            r"@everyone|@here|<@!?\d+>|<@&\d+>",
+            "",
+            content,
+        )
+
     @app_commands.command(
         name="setup",
         description="Set up or edit the server Skullboard system.",
@@ -975,7 +987,9 @@ class Skullboard(
                 message.author.display_avatar.url
             )
 
-            content = message.content.strip()
+            content = self.sanitize_content(
+                message.content
+            ).strip()
 
             if len(content) > 1900:
                 content = content[:1897] + "..."
