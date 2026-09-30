@@ -1,13 +1,18 @@
 import logging
 import time
 from pathlib import Path
+
 import discord
 from discord.ext import commands, tasks
+
 from bot.database import get_model_config, set_model_message
 from bot.llm import learn, load, save
 
+
 logger = logging.getLogger(__name__)
+
 MODEL_FILE = Path("model.bin")
+
 
 class TulipLM(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -41,26 +46,34 @@ class TulipLM(commands.Cog):
                     guild.id,
                     channel_id,
                 )
-                return
+                continue
 
             if message_id is None:
                 logger.info(
                     "No saved model found | Guild: %s",
                     guild.id,
                 )
-                return
+                continue
 
             try:
                 message = await channel.fetch_message(message_id)
 
-                if not message.attachments:
+                attachment = next(
+                    (
+                        attachment
+                        for attachment in message.attachments
+                        if attachment.filename == "model.bin"
+                    ),
+                    None,
+                )
+
+                if attachment is None:
                     logger.warning(
-                        "Model message has no attachment | Guild: %s",
+                        "Model attachment not found | Guild: %s",
                         guild.id,
                     )
-                    return
+                    continue
 
-                attachment = message.attachments[0]
                 data = await attachment.read()
 
                 MODEL_FILE.write_bytes(data)
@@ -89,6 +102,7 @@ class TulipLM(commands.Cog):
             return
 
         await self.initialize_model()
+
         self.initialized = True
 
     @commands.Cog.listener()
@@ -119,7 +133,7 @@ class TulipLM(commands.Cog):
             f"{message.author}: {text}"
         )
 
-    @tasks.loop(seconds=60)
+    @tasks.loop(seconds=5)
     async def save_task(self):
         if not self.initialized:
             return
@@ -137,14 +151,7 @@ class TulipLM(commands.Cog):
 
             interval = config["save_interval"]
             channel_id = config["channel_id"]
-
-            last_save = self.last_save.get(
-                guild.id,
-                now,
-            )
-
-            if now - last_save < interval:
-                continue
+            message_id = config["message_id"]
 
             channel = self.bot.get_channel(channel_id)
 
@@ -156,10 +163,19 @@ class TulipLM(commands.Cog):
                 )
                 continue
 
+            last_save = self.last_save.get(guild.id)
+
+            if last_save is None:
+                self.last_save[guild.id] = now
+                continue
+
+            if now - last_save < interval:
+                continue
+
             try:
                 save(str(MODEL_FILE))
 
-                message = await channel.send(
+                new_message = await channel.send(
                     file=discord.File(
                         str(MODEL_FILE),
                         filename="model.bin",
@@ -169,15 +185,16 @@ class TulipLM(commands.Cog):
                 await set_model_message(
                     self.bot.db,
                     guild.id,
-                    message.id,
+                    new_message.id,
                 )
 
                 self.last_save[guild.id] = now
 
                 logger.info(
-                    "Model saved | Guild: %s | Message: %s",
+                    "Model saved | Guild: %s | Old message: %s | New message: %s",
                     guild.id,
-                    message.id,
+                    message_id,
+                    new_message.id,
                 )
 
             except (discord.HTTPException, OSError):
@@ -189,6 +206,7 @@ class TulipLM(commands.Cog):
     @save_task.before_loop
     async def before_save_task(self):
         await self.bot.wait_until_ready()
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(TulipLM(bot))
