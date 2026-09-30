@@ -1,7 +1,7 @@
 from pathlib import Path
 import ctypes
 
-LIBRARY = Path(__file__).resolve().parent / "libtinylm.so"
+LIBRARY = Path(__file__).resolve().parent / "libtuliplm.so"
 _model = ctypes.CDLL(str(LIBRARY))
 _model.init_model()
 _model.learn.argtypes = [ctypes.c_char_p]
