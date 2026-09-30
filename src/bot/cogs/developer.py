@@ -80,8 +80,7 @@ class Developer(commands.Cog):
 
         await interaction.response.send_message(
             embed=success(
-                f"Model storage set to {channel.mention}.\n"
-                f"Save interval: {interval} minutes."
+                f"**Model storage** set to {channel.mention} with **`{interval}`** minutes interval."
             ),
             ephemeral=True,
         )
