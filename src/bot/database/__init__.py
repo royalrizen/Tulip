@@ -10,6 +10,9 @@ from .queries import (
     get_joins_channel,
     set_skullboard_config,
     get_skullboard_config,
+    set_model_config,
+    get_model_config,
+    set_model_message,
 )
 
 __all__ = [
@@ -23,4 +26,7 @@ __all__ = [
     "get_joins_channel",
     "set_skullboard_config",
     "get_skullboard_config",
+    "set_model_config",
+    "get_model_config",
+    "set_model_message",
 ]
