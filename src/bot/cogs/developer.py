@@ -2,7 +2,11 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from bot.database import set_logging_channel
+from bot.database import (
+    set_logging_channel,
+    set_model_config,
+)
+
 from bot.utils import error, is_bot_owner, success
 
 
@@ -47,8 +51,57 @@ class Developer(commands.Cog):
             ephemeral=True,
         )
 
+    @dev.command(
+        name="model",
+        description="Configure model storage.",
+    )
+    @app_commands.check(is_bot_owner)
+    async def model(
+        self,
+        interaction: discord.Interaction,
+        channel: discord.TextChannel,
+        interval: app_commands.Range[int, 1, 10080],
+    ):
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                embed=error(
+                    "This command can only be used in a server."
+                ),
+                ephemeral=True,
+            )
+            return
+
+        await set_model_config(
+            self.bot.db,
+            interaction.guild.id,
+            channel.id,
+            interval * 60,
+        )
+
+        await interaction.response.send_message(
+            embed=success(
+                f"Model storage set to {channel.mention}.\n"
+                f"Save interval: {interval} minutes."
+            ),
+            ephemeral=True,
+        )
+
     @logging.error
     async def logging_error(
+        self,
+        interaction: discord.Interaction,
+        exception: app_commands.AppCommandError,
+    ):
+        if isinstance(exception, app_commands.CheckFailure):
+            await interaction.response.send_message(
+                embed=error(
+                    "You don't have permission to use this command."
+                ),
+                ephemeral=True,
+            )
+
+    @model.error
+    async def model_error(
         self,
         interaction: discord.Interaction,
         exception: app_commands.AppCommandError,
