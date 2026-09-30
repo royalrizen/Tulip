@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "tulip"
 version = "0.1.0"
@@ -17,6 +21,10 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "bot.web" = ["templates/*.html"]
+
+[[tool.setuptools.ext-modules]]
+name = "bot.llm.tuliplm_native"
+sources = ["src/bot/llm/tuliplm.c"]
 
 [project.scripts]
 tulip = "bot.__main__:main"
