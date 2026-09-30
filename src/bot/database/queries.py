@@ -57,6 +57,15 @@ async def create_tables(db: Database):
             ADD COLUMN skullboard_webhook_url TEXT NULL
         """)
 
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS model_settings (
+            guild_id BIGINT PRIMARY KEY,
+            channel_id BIGINT NOT NULL,
+            message_id BIGINT NULL,
+            save_interval INT NOT NULL DEFAULT 3600
+        )
+    """)
+
 
 async def set_logging_channel(
     db: Database,
@@ -214,5 +223,64 @@ async def get_skullboard_config(
         FROM guild_settings
         WHERE guild_id = %s
         """,
+        guild_id,
+    )
+
+
+async def set_model_config(
+    db: Database,
+    guild_id: int,
+    channel_id: int,
+    save_interval: int,
+):
+    await db.execute(
+        """
+        INSERT INTO model_settings (
+            guild_id,
+            channel_id,
+            save_interval
+        )
+        VALUES (%s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            channel_id = %s,
+            save_interval = %s
+        """,
+        guild_id,
+        channel_id,
+        save_interval,
+        channel_id,
+        save_interval,
+    )
+
+
+async def get_model_config(
+    db: Database,
+    guild_id: int,
+):
+    return await db.fetchone(
+        """
+        SELECT
+            channel_id,
+            message_id,
+            save_interval
+        FROM model_settings
+        WHERE guild_id = %s
+        """,
+        guild_id,
+    )
+
+
+async def set_model_message(
+    db: Database,
+    guild_id: int,
+    message_id: int,
+):
+    await db.execute(
+        """
+        UPDATE model_settings
+        SET message_id = %s
+        WHERE guild_id = %s
+        """,
+        message_id,
         guild_id,
     )
