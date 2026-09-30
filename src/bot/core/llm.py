@@ -2,7 +2,7 @@ from pathlib import Path
 import ctypes
 
 BASE = Path(__file__).resolve().parent.parent
-LIBRARY = BASE / "llm" / "libtinylm.so"
+LIBRARY = BASE / "llm" / "libtuliplm.so"
 
 model = ctypes.CDLL(str(LIBRARY))
 
