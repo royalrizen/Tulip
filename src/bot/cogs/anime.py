@@ -1,14 +1,13 @@
 import discord
 from discord.ext import commands
-from discord import app_commands as s
+from discord import app_commands
 import requests
-import config
 
 class Anime(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @s.command(name="anime", description="Search anime from an image")
+    @app_commands.command(name="anime", description="Search anime from an image")
     async def trace_anime(self, interaction: discord.Interaction, image: discord.Attachment):
         image_data = await image.read()
         response = requests.post(
@@ -33,7 +32,7 @@ class Anime(commands.Cog):
                 video_url = result['video']
                 image_url = result['image']
 
-                result_embed = discord.Embed(title=f"{title} ({native_title})", color=config.PRIMARY_COLOR)
+                result_embed = discord.Embed(title=f"{title} ({native_title})", color=0xd1edff)
                 result_embed.description = f"- Similarity: **`{similarity:.2f}%`**\n- Episode: **`{episode}`**\n- From: **`{from_time}`**\n- To: **`{to_time}`**\n- NSFW: **`{is_adult}`**"
                 result_embed.set_image(url=image_url)
 
