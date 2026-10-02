@@ -8,6 +8,7 @@ Currently I've added,
 - Verification: This one's exclusive to my server so if you want to use it please update the role id, messages, etc yourself.
 - Skullboard: Similar to starboard which you've often seen in servers.
 - Tiny LLM: A simple chatbot like feature.
+- Display Name Style: You can setup how the bot's display name looks like.
 
 ## Things to note when self hosting
 You can make changes to `./utils/embeds.py` and replace the emoji ids.
