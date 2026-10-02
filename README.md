@@ -10,7 +10,7 @@ Currently I've added,
 - Tiny LLM: For training a small AI.
 - Display Name Style: You can setup how the bot's display name looks like.
 - Anime Searcher: You can find the exact episode and name of any anime just by uploading screenshot of a scene.
-- 
+
 ## Things to note when self hosting
 You can make changes to `./utils/embeds.py` and replace the emoji ids.
 
