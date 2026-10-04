@@ -17,7 +17,7 @@ from bot.utils import success, error
 
 
 VERIFICATION_ROLE_ID = 1151747087675949107
-VERIFICATION_IMAGE = "https://cdn.discordapp.com/attachments/1265641315690090577/1556201619262279752/f9a709e97ec11c57a9d16e5fa8e0bead.jpg?backend=b2&ex=6ac34d32&is=6ac1fbb2&hm=db6361bcb3c9d382decfbb4eb956058843d62fbfc3505dc3549c638d26a9478f"
+VERIFICATION_IMAGE = "https://cdn.discordapp.com/attachments/1265641315690090577/1556203765093240893/caa22b497f5efb2684b14907d4ab3807.jpg?backend=b2&ex=6ac34f32&is=6ac1fdb2&hm=5bea916e84b8e5ee483b0ffdf2f4b22e0e4ac39caec6e60321a7bbb449525c7a"
 
 
 class VerificationView(discord.ui.LayoutView):
@@ -34,7 +34,7 @@ class VerificationView(discord.ui.LayoutView):
                 "→ *hey what's this server about?* ⤸\n"
                 "> Hey! Welcome to Velouré. It is a small space for me, **@royalrizen**, to stay connected with some of my close Discord friends, mess around, and have a good time.\n"
                 "→ *why make this private?* ⤸\n"
-                "> There are very few restrictions here, so the humour and conversations can get pretty unfiltered and might not be everyone's thing. Because of that, entry is manually verified. When you join, I'll automatically get a notification to review your request. So if you're waiting for access, just be a little patient, I'll get to you lol."
+                "> There are very few restrictions here, so the humour and conversations can get pretty unfiltered and might not be everyone's thing. Another reason is to create a safe space and keep Discord drama away. Because of that, entry is manually verified. When you join, I'll automatically get a notification to review your request. So if you're waiting for access, just be a little patient, I'll get to you lol."
             ),
             discord.ui.Separator(),
             discord.ui.MediaGallery(
