@@ -23,8 +23,7 @@ from bot.utils import success, error
 VERIFICATION_ROLE_ID = 1151747087675949107
 
 VERIFICATION_IMAGE = (
-    "https://i.ibb.co/FqLw8VTm/"
-    "977e7b335e707474d6184c494bf01b54.jpg"
+    "https://i.ibb.co/GbqmWbt/f9a709e97ec11c57a9d16e5fa8e0bead.jpg"
 )
 
 
@@ -36,22 +35,17 @@ class VerificationView(discord.ui.LayoutView):
 
         self.container = discord.ui.Container(
             discord.ui.TextDisplay(
-                "## <a:wave:1543215898976845834>  ONBOARDING"
+                "## **_                   _  .✦ ݁˖     ONBOARDING    .✦ ݁˖** <a:wave:1543215898976845834>"
             ),
 
             discord.ui.Separator(),
 
             discord.ui.TextDisplay(
-                "Hey! Welcome to Velouré. It is a small space for me, "
-                "**@royalrizen**, to stay connected with some of my close "
-                "Discord friends, mess around, and have a good time. There "
-                "are very few restrictions here, so the humour and "
-                "conversations can get pretty unfiltered and might not be "
-                "everyone's thing. Because of that, entry is manually "
-                "verified. When you join, I'll automatically get a "
-                "notification to review your request. So if you're waiting "
-                "for access, just be a little patient, I'll get to you lol."
-            ),
+                "→ hey what's this server about? ⤸\n",
+                "> Hey! Welcome to Velouré. It is a small space for me, **@royalrizen**, to stay connected with some of my close Discord friends, mess around, and have a good time."
+                "→ why make this private? ⤸\n"
+                "> There are very few restrictions here, so the humour and conversations can get pretty unfiltered and might not be everyone's thing. Because of that, entry is manually verified. When you join, I'll automatically get a notification to review your request. So if you're waiting for access, just be a little patient, I'll get to you lol."
+                     ),
 
             discord.ui.Separator(),
 
@@ -60,6 +54,8 @@ class VerificationView(discord.ui.LayoutView):
                     media=VERIFICATION_IMAGE
                 )
             ),
+
+            discord.ui.Separator(),
         )
 
         self.buttons = discord.ui.ActionRow()
