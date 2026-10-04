@@ -31,7 +31,7 @@ class VerificationView(discord.ui.LayoutView):
             ),
             discord.ui.Separator(),
             discord.ui.TextDisplay(
-                "→ *hey what's this server about?* ⤸\n",
+                "→ *hey what's this server about?* ⤸\n"
                 "> Hey! Welcome to Velouré. It is a small space for me, **@royalrizen**, to stay connected with some of my close Discord friends, mess around, and have a good time.\n"
                 "→ *why make this private?* ⤸\n"
                 "> There are very few restrictions here, so the humour and conversations can get pretty unfiltered and might not be everyone's thing. Because of that, entry is manually verified. When you join, I'll automatically get a notification to review your request. So if you're waiting for access, just be a little patient, I'll get to you lol."
