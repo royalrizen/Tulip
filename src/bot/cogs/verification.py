@@ -7,66 +7,39 @@ This is only a Velouré server exclusive Cog.
 
 import asyncio
 import random
-import time
 
 import discord
-
 from discord import app_commands
 from discord.ext import commands
 
-from bot.database import (
-    get_verification_config,
-    set_verification_config,
-)
+from bot.database import get_verification_config, set_verification_config
 from bot.utils import success, error
 
 
 VERIFICATION_ROLE_ID = 1151747087675949107
-
-VERIFICATION_IMAGE = (
-    "https://i.ibb.co/FqLw8VTm/977e7b335e707474d6184c494bf01b54.jpg"
-)
-
-PING_LIMIT = 5
-PING_COOLDOWN = 600
+VERIFICATION_IMAGE = "https://i.ibb.co/Y4Ry1ZqM/067037a778467fa3ac3f09243b129da1.jpg"
 
 
 class VerificationView(discord.ui.LayoutView):
     def __init__(self):
         super().__init__(timeout=None)
-
-        self.ping_counts: dict[tuple[int, int], list[float]] = {}
+        self.ping_counts: dict[tuple[int, int], int] = {}
 
         self.container = discord.ui.Container(
             discord.ui.TextDisplay(
-                "## **_                   _  .✦ ݁˖     ONBOARDING    .✦ ݁˖** "
-                "<a:wave:1543215898976845834>"
+                "## **_                   _  .✦ ݁˖     ONBOARDING    .✦ ݁˖** <a:wave:1543215898976845834>"
             ),
-
             discord.ui.Separator(),
-
             discord.ui.TextDisplay(
-                "→ hey what's this server about? ⤸\n"
-                "> Hey! Welcome to Velouré. It is a small space for me, "
-                "**@royalrizen**, to stay connected with some of my close "
-                "Discord friends, mess around, and have a good time.\n"
-                "→ why make this private? ⤸\n"
-                "> There are very few restrictions here, so the humour and "
-                "conversations can get pretty unfiltered and might not be "
-                "everyone's thing. Because of that, entry is manually "
-                "verified. When you join, I'll automatically get a "
-                "notification to review your request. So if you're waiting "
-                "for access, just be a little patient, I'll get to you lol."
+                "→ *hey what's this server about?* ⤸\n",
+                "> Hey! Welcome to Velouré. It is a small space for me, **@royalrizen**, to stay connected with some of my close Discord friends, mess around, and have a good time.\n"
+                "→ *why make this private?* ⤸\n"
+                "> There are very few restrictions here, so the humour and conversations can get pretty unfiltered and might not be everyone's thing. Because of that, entry is manually verified. When you join, I'll automatically get a notification to review your request. So if you're waiting for access, just be a little patient, I'll get to you lol."
             ),
-
             discord.ui.Separator(),
-
             discord.ui.MediaGallery(
-                discord.MediaGalleryItem(
-                    media=VERIFICATION_IMAGE
-                )
+                discord.MediaGalleryItem(media=VERIFICATION_IMAGE)
             ),
-
             discord.ui.Separator(),
         )
 
@@ -77,13 +50,11 @@ class VerificationView(discord.ui.LayoutView):
             style=discord.ButtonStyle.secondary,
             custom_id="veloure:verification:why",
         )
-
         self.ping_button = discord.ui.Button(
             label="Ping Rizen",
             style=discord.ButtonStyle.primary,
             custom_id="veloure:verification:ping",
         )
-
         self.leave_button = discord.ui.Button(
             label="Leave Server",
             style=discord.ButtonStyle.danger,
@@ -97,15 +68,10 @@ class VerificationView(discord.ui.LayoutView):
         self.buttons.add_item(self.why_button)
         self.buttons.add_item(self.ping_button)
         self.buttons.add_item(self.leave_button)
-
         self.container.add_item(self.buttons)
-
         self.add_item(self.container)
 
-    async def why(
-        self,
-        interaction: discord.Interaction,
-    ):
+    async def why(self, interaction: discord.Interaction):
         responses = [
             "Please read the above message carefully lol.",
             "Shut up xd",
@@ -113,60 +79,27 @@ class VerificationView(discord.ui.LayoutView):
             "Be patient.",
             "I don't like you. jkkk",
         ]
-
         await interaction.response.send_message(
             random.choice(responses),
             ephemeral=True,
         )
 
-    async def ping_rizen(
-        self,
-        interaction: discord.Interaction,
-    ):
+    async def ping_rizen(self, interaction: discord.Interaction):
         if interaction.guild is None:
+            await interaction.response.defer(ephemeral=True)
+            return
+
+        key = (interaction.guild.id, interaction.user.id)
+        count = self.ping_counts.get(key, 0)
+
+        if count >= 5:
             await interaction.response.send_message(
-                "This button can only be used in a server.",
+                "You've already pinged Rizen several times.",
                 ephemeral=True,
             )
             return
 
-        key = (
-            interaction.guild.id,
-            interaction.user.id,
-        )
-
-        now = time.monotonic()
-
-        timestamps = self.ping_counts.get(
-            key,
-            [],
-        )
-
-        timestamps = [
-            timestamp
-            for timestamp in timestamps
-            if now - timestamp < PING_COOLDOWN
-        ]
-
-        if len(timestamps) >= PING_LIMIT:
-            oldest = timestamps[0]
-            remaining = int(
-                PING_COOLDOWN - (now - oldest)
-            )
-
-            minutes = remaining // 60
-            seconds = remaining % 60
-
-            await interaction.response.send_message(
-                f"You've pinged Rizen too many times. "
-                f"Try again in {minutes}m {seconds}s.",
-                ephemeral=True,
-            )
-            return
-
-        timestamps.append(now)
-        self.ping_counts[key] = timestamps
-
+        self.ping_counts[key] = count + 1
         owner = interaction.guild.owner
 
         if owner is None:
@@ -179,42 +112,22 @@ class VerificationView(discord.ui.LayoutView):
                 discord.Forbidden,
                 discord.HTTPException,
             ):
-                await interaction.response.send_message(
-                    "I couldn't find the server owner.",
-                    ephemeral=True,
-                )
+                await interaction.response.defer(ephemeral=True)
                 return
 
-        await interaction.response.defer(
-            ephemeral=True
-        )
+        await interaction.response.defer(ephemeral=True)
 
         try:
             message = await interaction.channel.send(
-                f"||{owner.mention}||, "
-                f"{interaction.user.mention} is asking for you."
+                f"||{owner.mention}||, {interaction.user.mention} is asking for you."
             )
-
-        except (
-            discord.Forbidden,
-            discord.HTTPException,
-        ):
-            await interaction.followup.send(
-                "I couldn't ping Rizen in this channel.",
-                ephemeral=True,
-            )
+        except (discord.Forbidden, discord.HTTPException):
             return
-
-        await interaction.followup.send(
-            "Rizen has been pinged.",
-            ephemeral=True,
-        )
 
         await asyncio.sleep(3)
 
         try:
             await message.delete()
-
         except (
             discord.NotFound,
             discord.Forbidden,
@@ -222,15 +135,9 @@ class VerificationView(discord.ui.LayoutView):
         ):
             pass
 
-    async def leave_server(
-        self,
-        interaction: discord.Interaction,
-    ):
+    async def leave_server(self, interaction: discord.Interaction):
         if interaction.guild is None:
-            await interaction.response.send_message(
-                "This button can only be used in a server.",
-                ephemeral=True,
-            )
+            await interaction.response.defer(ephemeral=True)
             return
 
         if interaction.user.guild_permissions.administrator:
@@ -240,267 +147,124 @@ class VerificationView(discord.ui.LayoutView):
             )
             return
 
-        bot_member = interaction.guild.me
-
-        if bot_member is None:
-            try:
-                bot_member = await interaction.guild.fetch_member(
-                    self.bot.user.id
-                )
-            except (
-                discord.NotFound,
-                discord.Forbidden,
-                discord.HTTPException,
-            ):
-                await interaction.response.send_message(
-                    "I couldn't determine whether I can remove you.",
-                    ephemeral=True,
-                )
-                return
-
-        if not bot_member.guild_permissions.kick_members:
-            await interaction.response.send_message(
-                "I don't have permission to remove you from the server.",
-                ephemeral=True,
-            )
-            return
-
-        await interaction.response.defer(
-            ephemeral=True
-        )
+        await interaction.response.defer()
 
         try:
             await interaction.guild.kick(
                 interaction.user,
-                reason=(
-                    "User left through the Velouré "
-                    "verification panel."
-                ),
+                reason="User left through the Velouré verification panel.",
             )
-
-        except discord.NotFound:
-            await interaction.followup.send(
-                "You are no longer in the server.",
-                ephemeral=True,
-            )
+        except (
+            discord.NotFound,
+            discord.Forbidden,
+            discord.HTTPException,
+        ):
             return
-
-        except discord.Forbidden:
-            await interaction.followup.send(
-                "I don't have permission to remove you "
-                "from the server.",
-                ephemeral=True,
-            )
-            return
-
-        except discord.HTTPException:
-            await interaction.followup.send(
-                "Something went wrong while leaving the server.",
-                ephemeral=True,
-            )
-            return
-
-        await interaction.followup.send(
-            "You have been removed from the server.",
-            ephemeral=True,
-        )
 
 
 class VerificationDoneView(discord.ui.LayoutView):
     def __init__(self):
         super().__init__(timeout=60)
-
         self.add_item(
             discord.ui.Container(
-                discord.ui.TextDisplay(
-                    "## Verification Setup Done"
-                ),
-
+                discord.ui.TextDisplay("## Verification Setup Done"),
                 discord.ui.Separator(),
-
                 discord.ui.TextDisplay(
-                    "The verification panel has been "
-                    "sent successfully."
+                    "The verification panel has been sent successfully."
                 ),
             )
         )
 
 
 class VerificationSetupView(discord.ui.LayoutView):
-    def __init__(
-        self,
-        cog: "Verification",
-        interaction: discord.Interaction,
-    ):
+    def __init__(self, cog: "Verification", interaction: discord.Interaction):
         super().__init__(timeout=300)
 
         self.cog = cog
         self.interaction = interaction
-
         self.channel_id: int | None = None
         self.webhook_url: str | None = None
         self.webhook_name: str | None = None
 
         self.container = discord.ui.Container()
-
-        self.title_display = discord.ui.TextDisplay(
-            "## Verification Setup"
-        )
-
+        self.title_display = discord.ui.TextDisplay("## Verification Setup")
         self.description_display = discord.ui.TextDisplay(
             "Configure the verification system for this server."
         )
+        self.info_display = discord.ui.TextDisplay(self.get_info())
 
-        self.info_display = discord.ui.TextDisplay(
-            self.get_info()
-        )
-
-        self.container.add_item(
-            self.title_display
-        )
-
-        self.container.add_item(
-            discord.ui.Separator()
-        )
-
-        self.container.add_item(
-            self.description_display
-        )
-
-        self.container.add_item(
-            discord.ui.Separator()
-        )
-
-        self.container.add_item(
-            self.info_display
-        )
-
-        self.container.add_item(
-            discord.ui.Separator()
-        )
+        self.container.add_item(self.title_display)
+        self.container.add_item(discord.ui.Separator())
+        self.container.add_item(self.description_display)
+        self.container.add_item(discord.ui.Separator())
+        self.container.add_item(self.info_display)
+        self.container.add_item(discord.ui.Separator())
 
         self.channel_row = discord.ui.ActionRow()
-
-        self.channel_select = VerificationChannelSelect(
-            self
-        )
-
-        self.channel_row.add_item(
-            self.channel_select
-        )
-
-        self.container.add_item(
-            self.channel_row
-        )
+        self.channel_select = VerificationChannelSelect(self)
+        self.channel_row.add_item(self.channel_select)
+        self.container.add_item(self.channel_row)
 
         self.button_row = discord.ui.ActionRow()
-
-        self.create_button = CreateWebhookButton(
-            self
-        )
-
+        self.create_button = CreateWebhookButton(self)
         self.create_button.disabled = True
+        self.button_row.add_item(self.create_button)
+        self.container.add_item(self.button_row)
 
-        self.button_row.add_item(
-            self.create_button
-        )
-
-        self.container.add_item(
-            self.button_row
-        )
-
-        self.add_item(
-            self.container
-        )
+        self.add_item(self.container)
 
     def get_info(self):
         if self.channel_id:
-            channel = self.cog.bot.get_channel(
-                self.channel_id
-            )
-
-            channel_value = (
-                channel.mention
-                if channel
-                else f"<#{self.channel_id}>"
-            )
+            channel = self.cog.bot.get_channel(self.channel_id)
+            channel_value = channel.mention if channel else f"<#{self.channel_id}>"
         else:
             channel_value = "Not selected"
 
         if self.webhook_url:
             webhook_value = (
-                f"[{self.webhook_name or 'Webhook'}]"
-                f"({self.webhook_url})"
+                f"[{self.webhook_name or 'Webhook'}]({self.webhook_url})"
             )
         else:
             webhook_value = "Not configured"
 
         return (
-            f"**Verification Channel**\n"
-            f"{channel_value}\n\n"
-            f"**Webhook**\n"
-            f"{webhook_value}"
+            f"**Verification Channel**\n{channel_value}\n\n"
+            f"**Webhook**\n{webhook_value}"
         )
 
-    async def update(
-        self,
-        interaction: discord.Interaction,
-    ):
+    async def update(self, interaction: discord.Interaction):
         self.info_display.content = self.get_info()
-
-        await interaction.response.edit_message(
-            view=self
-        )
+        await interaction.response.edit_message(view=self)
 
     async def show_send_button(self):
         self.button_row.clear_items()
-
-        self.button_row.add_item(
-            SendVerificationButton(self)
-        )
-
+        self.button_row.add_item(SendVerificationButton(self))
         self.info_display.content = self.get_info()
+        await self.interaction.edit_original_response(view=self)
 
-        await self.interaction.edit_original_response(
-            view=self
-        )
-
-    async def create_webhook(
-        self,
-        interaction: discord.Interaction,
-    ):
+    async def create_webhook(self, interaction: discord.Interaction):
         if self.channel_id is None:
             await interaction.followup.send(
-                embed=error(
-                    "Please select a verification channel first."
-                ),
+                embed=error("Please select a verification channel first."),
                 ephemeral=True,
             )
             return
 
-        channel = interaction.guild.get_channel(
-            self.channel_id
-        )
+        channel = interaction.guild.get_channel(self.channel_id)
 
         if channel is None:
             await interaction.followup.send(
-                embed=error(
-                    "The selected verification channel "
-                    "no longer exists."
-                ),
+                embed=error("The selected verification channel no longer exists."),
                 ephemeral=True,
             )
             return
 
-        permissions = channel.permissions_for(
-            interaction.guild.me
-        )
+        permissions = channel.permissions_for(interaction.guild.me)
 
         if not permissions.manage_webhooks:
             await interaction.followup.send(
                 embed=error(
-                    "I don't have permission to manage "
-                    "webhooks in that channel."
+                    "I don't have permission to manage webhooks in that channel."
                 ),
                 ephemeral=True,
             )
@@ -511,12 +275,7 @@ class VerificationSetupView(discord.ui.LayoutView):
             interaction.guild.id,
         )
 
-        existing_url = None
-
-        if config:
-            existing_url = config.get(
-                "verification_webhook_url"
-            )
+        existing_url = config.get("verification_webhook_url") if config else None
 
         if existing_url:
             try:
@@ -524,9 +283,7 @@ class VerificationSetupView(discord.ui.LayoutView):
                     existing_url,
                     client=self.cog.bot,
                 )
-
                 await existing_webhook.fetch()
-
             except discord.NotFound:
                 await set_verification_config(
                     self.cog.bot.db,
@@ -534,53 +291,39 @@ class VerificationSetupView(discord.ui.LayoutView):
                     self.channel_id,
                     "",
                 )
-
             except discord.Forbidden:
                 await interaction.followup.send(
                     embed=error(
-                        "I don't have permission to access "
-                        "the configured webhook."
+                        "I don't have permission to access the configured webhook."
                     ),
                     ephemeral=True,
                 )
                 return
-
             except discord.HTTPException as exc:
                 await interaction.followup.send(
-                    embed=error(
-                        f"Failed to check the existing webhook: "
-                        f"`{exc}`"
-                    ),
+                    embed=error(f"Failed to check the existing webhook: `{exc}`"),
                     ephemeral=True,
                 )
                 return
-
             else:
-                if existing_webhook.channel_id == self.channel_id:
-                    self.webhook_url = existing_url
-                    self.webhook_name = existing_webhook.name
+                self.webhook_url = existing_url
+                self.webhook_name = existing_webhook.name
 
-                    await set_verification_config(
-                        self.cog.bot.db,
-                        interaction.guild.id,
-                        self.channel_id,
-                        self.webhook_url,
-                    )
+                await set_verification_config(
+                    self.cog.bot.db,
+                    interaction.guild.id,
+                    self.channel_id,
+                    self.webhook_url,
+                )
 
-                    await self.show_send_button()
-                    return
-
-                self.webhook_url = None
-                self.webhook_name = None
+                await self.show_send_button()
+                return
 
         self.create_button.disabled = True
         self.create_button.label = "Creating..."
-
         self.info_display.content = self.get_info()
 
-        await self.interaction.edit_original_response(
-            view=self
-        )
+        await self.interaction.edit_original_response(view=self)
 
         try:
             avatar = None
@@ -596,36 +339,27 @@ class VerificationSetupView(discord.ui.LayoutView):
                 avatar=avatar,
                 reason="Verification webhook setup",
             )
-
         except discord.Forbidden:
             self.create_button.disabled = False
             self.create_button.label = "Create Webhook"
 
-            await self.interaction.edit_original_response(
-                view=self
-            )
+            await self.interaction.edit_original_response(view=self)
 
             await interaction.followup.send(
                 embed=error(
-                    "I don't have permission to create "
-                    "a webhook in that channel."
+                    "I don't have permission to create a webhook in that channel."
                 ),
                 ephemeral=True,
             )
             return
-
         except discord.HTTPException as exc:
             self.create_button.disabled = False
             self.create_button.label = "Create Webhook"
 
-            await self.interaction.edit_original_response(
-                view=self
-            )
+            await self.interaction.edit_original_response(view=self)
 
             await interaction.followup.send(
-                embed=error(
-                    f"Failed to create webhook: `{exc}`"
-                ),
+                embed=error(f"Failed to create webhook: `{exc}`"),
                 ephemeral=True,
             )
             return
@@ -643,102 +377,60 @@ class VerificationSetupView(discord.ui.LayoutView):
         await self.show_send_button()
 
         await interaction.followup.send(
-            embed=success(
-                f"Webhook `{webhook.name}` created and saved."
-            ),
+            embed=success(f"Webhook `{webhook.name}` created and saved."),
             ephemeral=True,
         )
 
 
-class VerificationChannelSelect(
-    discord.ui.ChannelSelect
-):
-    def __init__(
-        self,
-        view: VerificationSetupView,
-    ):
+class VerificationChannelSelect(discord.ui.ChannelSelect):
+    def __init__(self, view: VerificationSetupView):
         super().__init__(
             placeholder="Select verification channel...",
-            channel_types=[
-                discord.ChannelType.text
-            ],
+            channel_types=[discord.ChannelType.text],
             min_values=1,
             max_values=1,
         )
-
         self.setup_view = view
 
-    async def callback(
-        self,
-        interaction: discord.Interaction,
-    ):
+    async def callback(self, interaction: discord.Interaction):
         channel = self.values[0]
-
         self.setup_view.channel_id = channel.id
         self.setup_view.create_button.disabled = False
-
-        await self.setup_view.update(
-            interaction
-        )
+        await self.setup_view.update(interaction)
 
 
-class CreateWebhookButton(
-    discord.ui.Button
-):
-    def __init__(
-        self,
-        view: VerificationSetupView,
-    ):
+class CreateWebhookButton(discord.ui.Button):
+    def __init__(self, view: VerificationSetupView):
         super().__init__(
             label="Create Webhook",
             style=discord.ButtonStyle.primary,
         )
-
         self.setup_view = view
 
-    async def callback(
-        self,
-        interaction: discord.Interaction,
-    ):
+    async def callback(self, interaction: discord.Interaction):
         await interaction.response.defer()
-
-        await self.setup_view.create_webhook(
-            interaction
-        )
+        await self.setup_view.create_webhook(interaction)
 
 
-class SendVerificationButton(
-    discord.ui.Button
-):
-    def __init__(
-        self,
-        view: VerificationSetupView,
-    ):
+class SendVerificationButton(discord.ui.Button):
+    def __init__(self, view: VerificationSetupView):
         super().__init__(
             label="Send",
             style=discord.ButtonStyle.primary,
         )
-
         self.setup_view = view
 
-    async def callback(
-        self,
-        interaction: discord.Interaction,
-    ):
+    async def callback(self, interaction: discord.Interaction):
         if self.setup_view.channel_id is None:
             await interaction.response.send_message(
-                embed=error(
-                    "Please select a verification channel first."
-                ),
+                embed=error("Please select a verification channel first."),
                 ephemeral=True,
             )
             return
 
         if self.setup_view.webhook_url is None:
             await interaction.response.send_message(
-                embed=error(
-                    "Please create a webhook first."
-                ),
+                embed=error("Please create a webhook first."),
                 ephemeral=True,
             )
             return
@@ -749,16 +441,18 @@ class SendVerificationButton(
 
         if channel is None:
             await interaction.response.send_message(
-                embed=error(
-                    "The verification channel "
-                    "no longer exists."
-                ),
+                embed=error("The verification channel no longer exists."),
                 ephemeral=True,
             )
             return
 
-        await interaction.response.defer(
-            ephemeral=True
+        await interaction.response.defer(ephemeral=True)
+
+        await set_verification_config(
+            self.setup_view.cog.bot.db,
+            interaction.guild.id,
+            channel.id,
+            self.setup_view.webhook_url,
         )
 
         try:
@@ -771,69 +465,45 @@ class SendVerificationButton(
                 view=self.setup_view.cog.verification_view,
                 wait=True,
             )
-
         except discord.NotFound:
             await interaction.edit_original_response(
-                embed=error(
-                    "The configured webhook no longer exists."
-                ),
+                embed=error("The configured webhook no longer exists."),
                 view=None,
             )
             return
-
         except discord.Forbidden:
             await interaction.edit_original_response(
                 embed=error(
-                    "I don't have permission to use the "
-                    "configured webhook."
+                    "I don't have permission to use the configured webhook."
                 ),
                 view=None,
             )
             return
-
         except discord.HTTPException as exc:
             await interaction.edit_original_response(
                 embed=error(
-                    f"Failed to send the verification message: "
-                    f"`{exc}`"
+                    f"Failed to send the verification message: `{exc}`"
                 ),
                 view=None,
             )
             return
-
-        await set_verification_config(
-            self.setup_view.cog.bot.db,
-            interaction.guild.id,
-            channel.id,
-            self.setup_view.webhook_url,
-        )
 
         await interaction.edit_original_response(
             view=VerificationDoneView()
         )
 
 
-class Verification(
-    commands.GroupCog,
-    group_name="verification",
-):
-    def __init__(
-        self,
-        bot: commands.Bot,
-    ):
+class Verification(commands.GroupCog, group_name="verification"):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.verification_view = VerificationView()
 
-    def has_admin_access(
-        self,
-        interaction: discord.Interaction,
-    ) -> bool:
+    def has_admin_access(self, interaction: discord.Interaction) -> bool:
         if interaction.guild is None:
             return False
 
         return (
-            interaction.user.id
-            == interaction.guild.owner_id
+            interaction.user.id == interaction.guild.owner_id
             or interaction.user.guild_permissions.administrator
         )
 
@@ -841,16 +511,10 @@ class Verification(
         name="setup",
         description="Set up the server verification system.",
     )
-    async def setup(
-        self,
-        interaction: discord.Interaction,
-    ):
+    async def setup(self, interaction: discord.Interaction):
         if interaction.guild is None:
             await interaction.response.send_message(
-                embed=error(
-                    "This command can only be used "
-                    "in a server."
-                ),
+                embed=error("This command can only be used in a server."),
                 ephemeral=True,
             )
             return
@@ -858,17 +522,13 @@ class Verification(
         if not self.has_admin_access(interaction):
             await interaction.response.send_message(
                 embed=error(
-                    "Only the server owner or an "
-                    "administrator can use this command."
+                    "Only the server owner or an administrator can use this command."
                 ),
                 ephemeral=True,
             )
             return
 
-        view = VerificationSetupView(
-            self,
-            interaction,
-        )
+        view = VerificationSetupView(self, interaction)
 
         await interaction.response.send_message(
             view=view,
@@ -1005,8 +665,5 @@ class Verification(
 async def setup(bot: commands.Bot):
     verification = Verification(bot)
 
-    bot.add_view(
-        verification.verification_view
-    )
-
+    bot.add_view(verification.verification_view)
     await bot.add_cog(verification)
