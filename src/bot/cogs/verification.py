@@ -17,7 +17,7 @@ from bot.utils import success, error
 
 
 VERIFICATION_ROLE_ID = 1151747087675949107
-VERIFICATION_IMAGE = "https://cdn.discordapp.com/attachments/1265641315690090577/1556175533203791903/08d97e21bdcbf2bf8f3dc73384cde3dc.jpg?backend=b2&ex=6ac334e7&is=6ac1e367&hm=bf1a19dadd477c890003952cc5ebd95f699a76c0c48d4be4979c2fe8aa244dfd"
+VERIFICATION_IMAGE = "https://cdn.discordapp.com/attachments/1265641315690090577/1556201619262279752/f9a709e97ec11c57a9d16e5fa8e0bead.jpg?backend=b2&ex=6ac34d32&is=6ac1fbb2&hm=db6361bcb3c9d382decfbb4eb956058843d62fbfc3505dc3549c638d26a9478f"
 
 
 class VerificationView(discord.ui.LayoutView):
