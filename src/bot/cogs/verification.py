@@ -7,6 +7,7 @@ This is only a Velouré server exclusive Cog.
 
 import asyncio
 import random
+import time
 
 import discord
 
@@ -23,29 +24,40 @@ from bot.utils import success, error
 VERIFICATION_ROLE_ID = 1151747087675949107
 
 VERIFICATION_IMAGE = (
-    "https://i.ibb.co/GbqmWbt/f9a709e97ec11c57a9d16e5fa8e0bead.jpg"
+    "https://i.ibb.co/FqLw8VTm/977e7b335e707474d6184c494bf01b54.jpg"
 )
+
+PING_LIMIT = 5
+PING_COOLDOWN = 600
 
 
 class VerificationView(discord.ui.LayoutView):
     def __init__(self):
         super().__init__(timeout=None)
 
-        self.ping_counts: dict[tuple[int, int], int] = {}
+        self.ping_counts: dict[tuple[int, int], list[float]] = {}
 
         self.container = discord.ui.Container(
             discord.ui.TextDisplay(
-                "## **_                   _  .✦ ݁˖     ONBOARDING    .✦ ݁˖** <a:wave:1543215898976845834>"
+                "## **_                   _  .✦ ݁˖     ONBOARDING    .✦ ݁˖** "
+                "<a:wave:1543215898976845834>"
             ),
 
             discord.ui.Separator(),
 
             discord.ui.TextDisplay(
                 "→ hey what's this server about? ⤸\n"
-                "> Hey! Welcome to Velouré. It is a small space for me, **@royalrizen**, to stay connected with some of my close Discord friends, mess around, and have a good time.\n"
+                "> Hey! Welcome to Velouré. It is a small space for me, "
+                "**@royalrizen**, to stay connected with some of my close "
+                "Discord friends, mess around, and have a good time.\n"
                 "→ why make this private? ⤸\n"
-                "> There are very few restrictions here, so the humour and conversations can get pretty unfiltered and might not be everyone's thing. Because of that, entry is manually verified. When you join, I'll automatically get a notification to review your request. So if you're waiting for access, just be a little patient, I'll get to you lol."
-                     ),
+                "> There are very few restrictions here, so the humour and "
+                "conversations can get pretty unfiltered and might not be "
+                "everyone's thing. Because of that, entry is manually "
+                "verified. When you join, I'll automatically get a "
+                "notification to review your request. So if you're waiting "
+                "for access, just be a little patient, I'll get to you lol."
+            ),
 
             discord.ui.Separator(),
 
@@ -112,8 +124,9 @@ class VerificationView(discord.ui.LayoutView):
         interaction: discord.Interaction,
     ):
         if interaction.guild is None:
-            await interaction.response.defer(
-                ephemeral=True
+            await interaction.response.send_message(
+                "This button can only be used in a server.",
+                ephemeral=True,
             )
             return
 
@@ -122,16 +135,37 @@ class VerificationView(discord.ui.LayoutView):
             interaction.user.id,
         )
 
-        count = self.ping_counts.get(key, 0)
+        now = time.monotonic()
 
-        if count >= 5:
+        timestamps = self.ping_counts.get(
+            key,
+            [],
+        )
+
+        timestamps = [
+            timestamp
+            for timestamp in timestamps
+            if now - timestamp < PING_COOLDOWN
+        ]
+
+        if len(timestamps) >= PING_LIMIT:
+            oldest = timestamps[0]
+            remaining = int(
+                PING_COOLDOWN - (now - oldest)
+            )
+
+            minutes = remaining // 60
+            seconds = remaining % 60
+
             await interaction.response.send_message(
-                "You've already pinged Rizen several times.",
+                f"You've pinged Rizen too many times. "
+                f"Try again in {minutes}m {seconds}s.",
                 ephemeral=True,
             )
             return
 
-        self.ping_counts[key] = count + 1
+        timestamps.append(now)
+        self.ping_counts[key] = timestamps
 
         owner = interaction.guild.owner
 
@@ -145,8 +179,9 @@ class VerificationView(discord.ui.LayoutView):
                 discord.Forbidden,
                 discord.HTTPException,
             ):
-                await interaction.response.defer(
-                    ephemeral=True
+                await interaction.response.send_message(
+                    "I couldn't find the server owner.",
+                    ephemeral=True,
                 )
                 return
 
@@ -159,16 +194,27 @@ class VerificationView(discord.ui.LayoutView):
                 f"||{owner.mention}||, "
                 f"{interaction.user.mention} is asking for you."
             )
+
         except (
             discord.Forbidden,
             discord.HTTPException,
         ):
+            await interaction.followup.send(
+                "I couldn't ping Rizen in this channel.",
+                ephemeral=True,
+            )
             return
+
+        await interaction.followup.send(
+            "Rizen has been pinged.",
+            ephemeral=True,
+        )
 
         await asyncio.sleep(3)
 
         try:
             await message.delete()
+
         except (
             discord.NotFound,
             discord.Forbidden,
@@ -181,8 +227,9 @@ class VerificationView(discord.ui.LayoutView):
         interaction: discord.Interaction,
     ):
         if interaction.guild is None:
-            await interaction.response.defer(
-                ephemeral=True
+            await interaction.response.send_message(
+                "This button can only be used in a server.",
+                ephemeral=True,
             )
             return
 
@@ -193,7 +240,34 @@ class VerificationView(discord.ui.LayoutView):
             )
             return
 
-        await interaction.response.defer()
+        bot_member = interaction.guild.me
+
+        if bot_member is None:
+            try:
+                bot_member = await interaction.guild.fetch_member(
+                    self.bot.user.id
+                )
+            except (
+                discord.NotFound,
+                discord.Forbidden,
+                discord.HTTPException,
+            ):
+                await interaction.response.send_message(
+                    "I couldn't determine whether I can remove you.",
+                    ephemeral=True,
+                )
+                return
+
+        if not bot_member.guild_permissions.kick_members:
+            await interaction.response.send_message(
+                "I don't have permission to remove you from the server.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer(
+            ephemeral=True
+        )
 
         try:
             await interaction.guild.kick(
@@ -203,12 +277,33 @@ class VerificationView(discord.ui.LayoutView):
                     "verification panel."
                 ),
             )
-        except (
-            discord.NotFound,
-            discord.Forbidden,
-            discord.HTTPException,
-        ):
+
+        except discord.NotFound:
+            await interaction.followup.send(
+                "You are no longer in the server.",
+                ephemeral=True,
+            )
             return
+
+        except discord.Forbidden:
+            await interaction.followup.send(
+                "I don't have permission to remove you "
+                "from the server.",
+                ephemeral=True,
+            )
+            return
+
+        except discord.HTTPException:
+            await interaction.followup.send(
+                "Something went wrong while leaving the server.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.followup.send(
+            "You have been removed from the server.",
+            ephemeral=True,
+        )
 
 
 class VerificationDoneView(discord.ui.LayoutView):
@@ -461,18 +556,22 @@ class VerificationSetupView(discord.ui.LayoutView):
                 return
 
             else:
-                self.webhook_url = existing_url
-                self.webhook_name = existing_webhook.name
+                if existing_webhook.channel_id == self.channel_id:
+                    self.webhook_url = existing_url
+                    self.webhook_name = existing_webhook.name
 
-                await set_verification_config(
-                    self.cog.bot.db,
-                    interaction.guild.id,
-                    self.channel_id,
-                    self.webhook_url,
-                )
+                    await set_verification_config(
+                        self.cog.bot.db,
+                        interaction.guild.id,
+                        self.channel_id,
+                        self.webhook_url,
+                    )
 
-                await self.show_send_button()
-                return
+                    await self.show_send_button()
+                    return
+
+                self.webhook_url = None
+                self.webhook_name = None
 
         self.create_button.disabled = True
         self.create_button.label = "Creating..."
@@ -662,13 +761,6 @@ class SendVerificationButton(
             ephemeral=True
         )
 
-        await set_verification_config(
-            self.setup_view.cog.bot.db,
-            interaction.guild.id,
-            channel.id,
-            self.setup_view.webhook_url,
-        )
-
         try:
             webhook = discord.Webhook.from_url(
                 self.setup_view.webhook_url,
@@ -708,6 +800,13 @@ class SendVerificationButton(
                 view=None,
             )
             return
+
+        await set_verification_config(
+            self.setup_view.cog.bot.db,
+            interaction.guild.id,
+            channel.id,
+            self.setup_view.webhook_url,
+        )
 
         await interaction.edit_original_response(
             view=VerificationDoneView()
@@ -878,7 +977,7 @@ class Verification(
                 )
 
                 await interaction.response.send_message(
-                    embed=success(                       
+                    embed=success(
                         f"{user.mention} verified."
                     ),
                     ephemeral=True,
