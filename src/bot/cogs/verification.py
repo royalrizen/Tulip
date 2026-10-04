@@ -27,7 +27,7 @@ class VerificationView(discord.ui.LayoutView):
 
         self.container = discord.ui.Container(
             discord.ui.TextDisplay(
-                "## **_         _  .✦ ݁˖  ONBOARDING .✦ ݁˖**  <a:wave:1543215898976845834>"
+                "## **_  _  .✦ ݁˖  ONBOARDING .✦ ݁˖**  <a:wave:1543215898976845834>"
             ),
             discord.ui.Separator(),
             discord.ui.TextDisplay(
