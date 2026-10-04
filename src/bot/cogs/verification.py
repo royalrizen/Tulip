@@ -624,7 +624,7 @@ class Verification(commands.GroupCog, group_name="verification"):
                     embed=success(
                         f"{user.mention} is no longer verified."
                     ),
-                    ephemeral=True,
+                    ephemeral=False,
                 )
 
             else:
@@ -640,7 +640,7 @@ class Verification(commands.GroupCog, group_name="verification"):
                     embed=success(
                         f"{user.mention} verified."
                     ),
-                    ephemeral=True,
+                    ephemeral=False,
                 )
 
         except discord.Forbidden:
