@@ -7,7 +7,7 @@ Currently I've added,
 - Logging: This sends all the logging messages printed on console directly to a Discord channel. Only bot owner can set it.
 - Verification: This one's exclusive to my server so if you want to use it please update the role id, messages, etc yourself.
 - Skullboard: Similar to starboard which you've often seen in servers.
-- Tiny LLM: For training a small AI.
+- ~~Tiny LLM: For training a small AI.~~
 - Display Name Style: You can setup how the bot's display name looks like.
 - Anime Searcher: You can find the exact episode and name of any anime just by uploading screenshot of a scene.
 
