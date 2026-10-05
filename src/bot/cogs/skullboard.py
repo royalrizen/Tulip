@@ -431,7 +431,7 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
         container = discord.ui.Container()
         container.add_item(
             discord.ui.TextDisplay(
-                f"**{author_name}**\n{content}"
+                f"{content}\n-# - {author_name}"
             )
         )
 
