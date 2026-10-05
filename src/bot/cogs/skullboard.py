@@ -428,22 +428,7 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
             content = "*No message content*"
 
         author_name = discord.utils.escape_markdown(message.author.display_name)
-
-        skull_count = next(
-            (reaction.count for reaction in message.reactions if str(reaction.emoji) == SKULL_EMOJI),
-            0
-        )
-
-        container = discord.ui.Container(
-            accent_color=discord.Color.dark_grey()
-        )
-
-        container.add_item(
-            discord.ui.TextDisplay("## 💀 Random Skullboard")
-        )
-        container.add_item(
-            discord.ui.Separator()
-        )
+        container = discord.ui.Container()
         container.add_item(
             discord.ui.TextDisplay(
                 f"**{author_name}**\n{content}"
@@ -472,11 +457,6 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
 
         container.add_item(
             discord.ui.Separator()
-        )
-        container.add_item(
-            discord.ui.TextDisplay(
-                f"💀 **{skull_count}** reactions • <t:{int(message.created_at.timestamp())}:R>"
-            )
         )
 
         row = discord.ui.ActionRow()
