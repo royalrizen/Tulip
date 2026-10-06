@@ -280,7 +280,7 @@ class Skullboard(commands.GroupCog,group_name="skullboard"):
             gallery=self.make_gallery(urls)
             if gallery:
                 container.add_item(gallery)
-        container.add_item(discord.ui.ActionRow(discord.ui.Button(label="Jump to Message",style=discord.ButtonStyle.link,url=message.jump_url)))
+        container.add_item(discord.ui.ActionRow(discord.ui.Button(label=message.channel.name,emoji=SKULL_EMOJI,style=discord.ButtonStyle.link,url=message.jump_url)))
         view=discord.ui.LayoutView()
         view.add_item(container)
         return view
