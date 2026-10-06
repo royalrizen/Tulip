@@ -246,6 +246,17 @@ class SkullboardDoneView(discord.ui.LayoutView):
         ))
 
 
+class SkullboardMessageView(discord.ui.View):
+    def __init__(self, message: discord.Message, channel_name: str):
+        super().__init__(timeout=None)
+        self.add_item(discord.ui.Button(
+            label=channel_name,
+            emoji=SKULL_EMOJI,
+            style=discord.ButtonStyle.link,
+            url=message.jump_url
+        ))
+
+
 class Skullboard(commands.GroupCog, group_name="skullboard"):
     def __init__(self, bot):
         self.bot = bot
@@ -260,8 +271,8 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
     def sanitize_content(content: str) -> str:
         if not content:
             return ""
-        content = re.sub(r"@everyone", "", content)
-        content = re.sub(r"@here", "", content)
+        content = re.sub(r"@everyone", "", content, flags=re.IGNORECASE)
+        content = re.sub(r"@here", "", content, flags=re.IGNORECASE)
         content = re.sub(r"<@!?\d+>", "", content)
         content = re.sub(r"<@&\d+>", "", content)
         return content
@@ -289,15 +300,6 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
         return files
 
     @staticmethod
-    def attachment_gallery(files: list[discord.File]) -> discord.ui.MediaGallery | None:
-        if not files:
-            return None
-        gallery = discord.ui.MediaGallery()
-        for file in files:
-            gallery.add_item(discord.MediaGalleryItem(media=f"attachment://{file.filename}"))
-        return gallery
-
-    @staticmethod
     def url_gallery(urls: list[str]) -> discord.ui.MediaGallery | None:
         if not urls:
             return None
@@ -306,7 +308,7 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
             gallery.add_item(discord.MediaGalleryItem(media=url))
         return gallery
 
-    def build_components(self, message: discord.Message, files=None):
+    def build_random_components(self, message: discord.Message, files=None):
         container = discord.ui.Container()
         content = self.build_message_content(message)
         author_name = discord.utils.escape_markdown(message.author.display_name)
@@ -316,9 +318,12 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
 
         if message.attachments:
             if files:
-                gallery = self.attachment_gallery(files)
+                gallery = discord.ui.MediaGallery()
+                for file in files:
+                    gallery.add_item(discord.MediaGalleryItem(media=f"attachment://{file.filename}"))
             else:
                 gallery = self.url_gallery([attachment.url for attachment in message.attachments])
+
             if gallery:
                 container.add_item(discord.ui.TextDisplay("### Attachments"))
                 container.add_item(gallery)
@@ -332,7 +337,9 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
                     continue
                 if url:
                     sticker_urls.append(url)
+
             gallery = self.url_gallery(sticker_urls)
+
             if gallery:
                 container.add_item(discord.ui.TextDisplay("### Sticker"))
                 container.add_item(gallery)
@@ -342,6 +349,41 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
 
         container.add_item(discord.ui.TextDisplay(f"-# \\- {author_name}"))
         container.add_item(discord.ui.Separator())
+
+        row = discord.ui.ActionRow()
+        row.add_item(discord.ui.Button(
+            label="Jump to Message",
+            style=discord.ButtonStyle.link,
+            url=message.jump_url
+        ))
+        container.add_item(row)
+
+        view = discord.ui.LayoutView()
+        view.add_item(container)
+        return view
+
+    def build_sticker_components(self, message: discord.Message):
+        container = discord.ui.Container()
+        content = self.build_message_content(message)
+
+        if content:
+            container.add_item(discord.ui.TextDisplay(content))
+
+        sticker_urls = []
+
+        for sticker in message.stickers:
+            try:
+                url = str(sticker.url)
+            except Exception:
+                continue
+            if url:
+                sticker_urls.append(url)
+
+        gallery = self.url_gallery(sticker_urls)
+
+        if gallery:
+            container.add_item(discord.ui.TextDisplay("### Sticker"))
+            container.add_item(gallery)
 
         row = discord.ui.ActionRow()
         row.add_item(discord.ui.Button(
@@ -410,6 +452,7 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
             return
 
         config = await get_skullboard_config(self.bot.db, interaction.guild.id)
+
         if not config:
             await interaction.response.send_message(embed=error("Skullboard is not configured for this server."), ephemeral=True)
             return
@@ -459,7 +502,7 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
             return
 
         message = random.choice(messages)
-        view = self.build_components(message)
+        view = self.build_random_components(message)
 
         await interaction.followup.send(
             view=view,
@@ -472,6 +515,7 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
             return
 
         config = await get_skullboard_config(self.bot.db, payload.guild_id)
+
         if not config:
             return
 
@@ -525,18 +569,31 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
         except Exception:
             return
 
-        files = await self.download_attachments(message)
-        view = self.build_components(message, files)
-
         try:
-            await webhook.send(
-                username=message.author.display_name,
-                avatar_url=message.author.display_avatar.url,
-                files=files,
-                view=view,
-                allowed_mentions=discord.AllowedMentions.none(),
-                wait=True
-            )
+            if message.stickers:
+                view = self.build_sticker_components(message)
+
+                await webhook.send(
+                    username=message.author.display_name,
+                    avatar_url=message.author.display_avatar.url,
+                    view=view,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                    wait=True
+                )
+            else:
+                files = await self.download_attachments(message)
+                content = self.build_message_content(message)
+                view = SkullboardMessageView(message, channel.name)
+
+                await webhook.send(
+                    content=content or None,
+                    username=message.author.display_name,
+                    avatar_url=message.author.display_avatar.url,
+                    files=files,
+                    view=view,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                    wait=True
+                )
         except (discord.NotFound, discord.Forbidden, discord.HTTPException):
             return
 
