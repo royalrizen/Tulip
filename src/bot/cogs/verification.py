@@ -14,7 +14,7 @@ class VerificationView(discord.ui.LayoutView):
         super().__init__(timeout=None)
         self.ping_counts: dict[tuple[int,int],int] = {}
         self.onboarding_container = discord.ui.Container(
-            discord.ui.TextDisplay("## **.✦ ݁˖  VERIFICATION .✦ ݁˖**  <a:wave:1543215898976845834>"),
+            discord.ui.TextDisplay("## **𖥻 ׁ ׅ  Verification ! ﹒  ◡◡**  <a:wave:1543215898976845834>"),
             discord.ui.Separator(),
             discord.ui.TextDisplay(
                 "→ *what's this server about?* ⤸\n"
@@ -24,7 +24,7 @@ class VerificationView(discord.ui.LayoutView):
             )
         )
         self.request_container = discord.ui.Container(
-            discord.ui.TextDisplay("## **REQUEST ACCESS**"),
+            discord.ui.TextDisplay("## **𖥻 ׁ ׅ  Request Access ! ﹒  ◡◡**"),
             discord.ui.Separator(),
             discord.ui.MediaGallery(discord.MediaGalleryItem(media=VERIFICATION_IMAGE)),
             discord.ui.Separator()
