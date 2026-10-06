@@ -169,49 +169,78 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        if str(payload.emoji) != SKULL_EMOJI or payload.guild_id is None:
-            return
-        config = await get_skullboard_config(payload.guild_id)
-        channel_id = config.get("skullboard_channel_id")
-        threshold = config.get("skullboard_threshold", 3)
-        webhook_url = config.get("skullboard_webhook_url")
-        if not channel_id or not webhook_url or payload.channel_id == channel_id:
-            return
         channel = self.bot.get_channel(payload.channel_id)
-        if channel is None:
-            return
+        message = None
+
         try:
+            if str(payload.emoji) != SKULL_EMOJI or payload.guild_id is None:
+                return
+
+            config = await get_skullboard_config(payload.guild_id)
+            channel_id = config.get("skullboard_channel_id")
+            threshold = config.get("skullboard_threshold", 3)
+            webhook_url = config.get("skullboard_webhook_url")
+
+            if not channel_id or not webhook_url or payload.channel_id == channel_id:
+                return
+
+            if channel is None:
+                return
+
             message = await channel.fetch_message(payload.message_id)
-        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-            return
-        reaction = discord.utils.get(message.reactions, emoji=SKULL_EMOJI)
-        if reaction is None or reaction.count < threshold or message.id in self.skullboarded_messages:
-            return
-        self.skullboarded_messages.add(message.id)
-        try:
+            reaction = discord.utils.get(message.reactions, emoji=SKULL_EMOJI)
+
+            if reaction is None or reaction.count < threshold:
+                return
+
+            if message.id in self.skullboarded_messages:
+                return
+
+            self.skullboarded_messages.add(message.id)
+
             webhook = discord.Webhook.from_url(webhook_url, session=self.bot.http._HTTPClient__session)
+
             if message.stickers:
                 view, files = await self.build_sticker_components(message)
+
                 if view is None:
                     self.skullboarded_messages.discard(message.id)
                     return
-                await webhook.send(username=message.author.display_name, avatar_url=message.author.display_avatar.url, files=files, view=view, allowed_mentions=discord.AllowedMentions.none(), wait=True)
+
+                await webhook.send(
+                    username=message.author.display_name,
+                    avatar_url=message.author.display_avatar.url,
+                    files=files,
+                    view=view,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                    wait=True
+                )
             else:
                 files = await self.download_attachments(message)
                 content = self.build_message_content(message)
-                await webhook.send(content=content or None, username=message.author.display_name, avatar_url=message.author.display_avatar.url, files=files, view=SkullboardMessageView(message, channel.name), allowed_mentions=discord.AllowedMentions.none(), wait=True)
-        except (discord.NotFound, discord.Forbidden, discord.HTTPException) as exc:
-            self.skullboarded_messages.discard(message.id)
-            try:
-                await channel.send(embed=error(f"Skullboard error: `{type(exc).__name__}: {str(exc)[:1500]}`"), allowed_mentions=discord.AllowedMentions.none())
-            except Exception:
-                pass
+
+                await webhook.send(
+                    content=content or None,
+                    username=message.author.display_name,
+                    avatar_url=message.author.display_avatar.url,
+                    files=files,
+                    view=SkullboardMessageView(message, channel.name),
+                    allowed_mentions=discord.AllowedMentions.none(),
+                    wait=True
+                )
+
         except Exception as exc:
-            self.skullboarded_messages.discard(message.id)
-            try:
-                await channel.send(embed=error(f"`Skullboard` :: `{type(exc).__name__}: {str(exc)[:1500]}`"), allowed_mentions=discord.AllowedMentions.none())
-            except Exception:
-                pass
+            if message:
+                self.skullboarded_messages.discard(message.id)
+
+            if channel:
+                try:
+                    await channel.send(
+                        embed=error(f"Skullboard error: `{type(exc).__name__}: {str(exc)[:1500]}`"),
+                        allowed_mentions=discord.AllowedMentions.none()
+                    )
+                except Exception:
+                    pass
 
 async def setup(bot):
     await bot.add_cog(Skullboard(bot))
