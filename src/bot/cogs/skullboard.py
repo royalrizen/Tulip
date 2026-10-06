@@ -231,7 +231,7 @@ class Skullboard(commands.GroupCog,group_name="skullboard"):
             return None
         gallery=discord.ui.MediaGallery()
         for url in urls:
-            gallery.add_item(discord.MediaGalleryItem(media=url))
+            gallery.add_item(item=discord.MediaGalleryItem(media=url))
         return gallery
 
     def build_random_view(self,message):
