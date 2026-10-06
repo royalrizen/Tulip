@@ -9,241 +9,46 @@ from bot.utils import success, error
 
 SKULL_EMOJI = "💀"
 
-class SkullboardSetupView(discord.ui.LayoutView):
-    def __init__(self, cog: "Skullboard", interaction: discord.Interaction, config=None):
+
+class SkullboardSetupView(discord.ui.View):
+    def __init__(self, cog, guild_id):
         super().__init__(timeout=300)
         self.cog = cog
-        self.interaction = interaction
-        self.channel_id: int | None = None
-        self.threshold: int = 3
-        self.webhook_url: str | None = None
-        self.webhook_name: str | None = None
+        self.guild_id = guild_id
 
-        if config:
-            self.channel_id = config.get("skullboard_channel_id")
-            self.threshold = config.get("skullboard_threshold") or 3
-            self.webhook_url = config.get("skullboard_webhook_url")
+    @discord.ui.button(label="Select Channel", style=discord.ButtonStyle.primary)
+    async def channel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        channels = [
+            c for c in interaction.guild.text_channels
+            if c.permissions_for(interaction.guild.me).send_messages
+        ]
+        if not channels:
+            return await interaction.response.send_message(
+                error("No usable text channels found."),
+                ephemeral=True
+            )
+        view = discord.ui.View(timeout=300)
+        select = discord.ui.ChannelSelect(
+            channel_types=[discord.ChannelType.text],
+            placeholder="Select the skullboard channel"
+        )
 
-        self.container = discord.ui.Container()
-        self.container.add_item(discord.ui.TextDisplay("## Skullboard Setup"))
-        self.container.add_item(discord.ui.Separator())
-        self.container.add_item(discord.ui.TextDisplay("Configure the Skullboard channel and reaction threshold."))
-        self.container.add_item(discord.ui.Separator())
-        self.info_display = discord.ui.TextDisplay(self.get_info())
-        self.container.add_item(self.info_display)
-        self.container.add_item(discord.ui.Separator())
+        async def callback(inter: discord.Interaction):
+            channel = select.values[0]
+            await set_skullboard_config(self.guild_id, "skullboard_channel_id", channel.id)
+            await inter.response.edit_message(
+                content=None,
+                embed=success(f"Skullboard channel set to {channel.mention}."),
+                view=None
+            )
 
-        self.channel_row = discord.ui.ActionRow()
-        self.channel_select = SkullboardChannelSelect(self)
-        self.channel_row.add_item(self.channel_select)
-        self.container.add_item(self.channel_row)
-
-        self.threshold_row = discord.ui.ActionRow()
-        self.threshold_button = ThresholdButton(self)
-        self.threshold_row.add_item(self.threshold_button)
-        self.container.add_item(self.threshold_row)
-
-        self.button_row = discord.ui.ActionRow()
-        if self.webhook_url:
-            self.save_button = SaveSkullboardButton(self)
-            self.button_row.add_item(self.save_button)
-        else:
-            self.create_button = CreateSkullboardWebhookButton(self)
-            self.create_button.disabled = self.channel_id is None
-            self.button_row.add_item(self.create_button)
-        self.container.add_item(self.button_row)
-        self.add_item(self.container)
-
-    def get_info(self):
-        if self.channel_id:
-            channel = self.cog.bot.get_channel(self.channel_id)
-            channel_value = channel.mention if channel else f"<#{self.channel_id}>"
-        else:
-            channel_value = "Not selected"
-
-        webhook_value = f"`{self.webhook_name}`" if self.webhook_name else ("Configured" if self.webhook_url else "Not configured")
-        return f"**Skullboard Channel**\n{channel_value}\n\n**Threshold**\n{SKULL_EMOJI} {self.threshold}\n\n**Webhook**\n{webhook_value}"
-
-    async def update(self, interaction):
-        self.info_display.content = self.get_info()
-        await interaction.response.edit_message(view=self)
-
-    async def create_webhook(self, interaction):
-        if self.channel_id is None:
-            await interaction.followup.send(embed=error("Please select a Skullboard channel first."), ephemeral=True)
-            return
-
-        channel = interaction.guild.get_channel(self.channel_id)
-        if channel is None:
-            await interaction.followup.send(embed=error("The selected Skullboard channel no longer exists."), ephemeral=True)
-            return
-
-        permissions = channel.permissions_for(interaction.guild.me)
-        if not permissions.manage_webhooks:
-            await interaction.followup.send(embed=error("I don't have permission to manage webhooks in that channel."), ephemeral=True)
-            return
-
-        config = await get_skullboard_config(self.cog.bot.db, interaction.guild.id)
-        existing_url = config.get("skullboard_webhook_url") if config else None
-
-        if existing_url:
-            try:
-                webhook = discord.Webhook.from_url(existing_url, client=self.cog.bot)
-                fetched = await webhook.fetch()
-            except discord.NotFound:
-                existing_url = None
-            except discord.Forbidden:
-                await interaction.followup.send(embed=error("I don't have permission to access the configured webhook."), ephemeral=True)
-                return
-            except discord.HTTPException as exc:
-                await interaction.followup.send(embed=error(f"Failed to check the existing webhook: `{exc}`"), ephemeral=True)
-                return
-            else:
-                self.webhook_url = existing_url
-                self.webhook_name = fetched.name
-                await self.finish_setup(interaction)
-                return
-
-        self.create_button.disabled = True
-        self.create_button.label = "Creating..."
-        await self.interaction.edit_original_response(view=self)
-
-        try:
-            avatar = None
-            if interaction.guild.icon:
-                try:
-                    avatar = await interaction.guild.icon.read()
-                except discord.HTTPException:
-                    avatar = None
-
-            webhook = await channel.create_webhook(name="Skullboard", avatar=avatar, reason="Skullboard webhook setup")
-        except discord.Forbidden:
-            self.create_button.disabled = False
-            self.create_button.label = "Create Webhook"
-            await self.interaction.edit_original_response(view=self)
-            await interaction.followup.send(embed=error("I don't have permission to create a webhook in that channel."), ephemeral=True)
-            return
-        except discord.HTTPException as exc:
-            self.create_button.disabled = False
-            self.create_button.label = "Create Webhook"
-            await self.interaction.edit_original_response(view=self)
-            await interaction.followup.send(embed=error(f"Failed to create webhook: `{exc}`"), ephemeral=True)
-            return
-
-        self.webhook_url = webhook.url
-        self.webhook_name = webhook.name
-        await set_skullboard_config(self.cog.bot.db, interaction.guild.id, self.channel_id, self.threshold, self.webhook_url)
-        await self.finish_setup(interaction)
-        await interaction.followup.send(embed=success(f"Webhook `{webhook.name}` created and saved."), ephemeral=True)
-
-    async def finish_setup(self, interaction):
-        await set_skullboard_config(self.cog.bot.db, interaction.guild.id, self.channel_id, self.threshold, self.webhook_url or "")
-        self.info_display.content = self.get_info()
-        self.button_row.clear_items()
-        self.button_row.add_item(SaveSkullboardButton(self))
-        await self.interaction.edit_original_response(view=self)
-
-
-class SkullboardChannelSelect(discord.ui.ChannelSelect):
-    def __init__(self, view):
-        super().__init__(placeholder="Select Skullboard channel...", channel_types=[discord.ChannelType.text], min_values=1, max_values=1)
-        self.setup_view = view
-
-    async def callback(self, interaction):
-        self.setup_view.channel_id = self.values[0].id
-        if hasattr(self.setup_view, "create_button"):
-            self.setup_view.create_button.disabled = False
-        await self.setup_view.update(interaction)
-
-
-class ThresholdModal(discord.ui.Modal, title="Skullboard Threshold"):
-    threshold = discord.ui.TextInput(label="Number of 💀 reactions", placeholder="Example: 3", min_length=1, max_length=2, required=True)
-
-    def __init__(self, setup_view):
-        super().__init__()
-        self.setup_view = setup_view
-        self.threshold.default = str(setup_view.threshold)
-
-    async def on_submit(self, interaction):
-        try:
-            value = int(self.threshold.value)
-        except ValueError:
-            await interaction.response.send_message(embed=error("The threshold must be a number."), ephemeral=True)
-            return
-
-        if value < 1:
-            await interaction.response.send_message(embed=error("The threshold must be at least 1."), ephemeral=True)
-            return
-
-        if value > 99:
-            await interaction.response.send_message(embed=error("The threshold cannot be greater than 99."), ephemeral=True)
-            return
-
-        self.setup_view.threshold = value
-        self.setup_view.info_display.content = self.setup_view.get_info()
-        await interaction.response.edit_message(view=self.setup_view)
-
-
-class ThresholdButton(discord.ui.Button):
-    def __init__(self, view):
-        super().__init__(label="Set Threshold", style=discord.ButtonStyle.secondary)
-        self.setup_view = view
-
-    async def callback(self, interaction):
-        await interaction.response.send_modal(ThresholdModal(self.setup_view))
-
-
-class CreateSkullboardWebhookButton(discord.ui.Button):
-    def __init__(self, view):
-        super().__init__(label="Create Webhook", style=discord.ButtonStyle.primary)
-        self.setup_view = view
-
-    async def callback(self, interaction):
-        await interaction.response.defer(ephemeral=True)
-        await self.setup_view.create_webhook(interaction)
-
-
-class SaveSkullboardButton(discord.ui.Button):
-    def __init__(self, view):
-        super().__init__(label="Save", style=discord.ButtonStyle.success)
-        self.setup_view = view
-
-    async def callback(self, interaction):
-        if self.setup_view.channel_id is None:
-            await interaction.response.send_message(embed=error("Please select a Skullboard channel first."), ephemeral=True)
-            return
-
-        if self.setup_view.webhook_url is None:
-            await interaction.response.send_message(embed=error("Please create a webhook first."), ephemeral=True)
-            return
-
-        try:
-            webhook = discord.Webhook.from_url(self.setup_view.webhook_url, client=self.setup_view.cog.bot)
-            fetched = await webhook.fetch()
-            self.setup_view.webhook_name = fetched.name
-        except discord.NotFound:
-            self.setup_view.webhook_url = None
-            await interaction.response.send_message(embed=error("The configured webhook no longer exists. Please run setup again to create a new one."), ephemeral=True)
-            return
-        except discord.Forbidden:
-            await interaction.response.send_message(embed=error("I don't have permission to access the configured webhook."), ephemeral=True)
-            return
-        except discord.HTTPException as exc:
-            await interaction.response.send_message(embed=error(f"Failed to check the webhook: `{exc}`"), ephemeral=True)
-            return
-
-        await set_skullboard_config(self.setup_view.cog.bot.db, interaction.guild.id, self.setup_view.channel_id, self.setup_view.threshold, self.setup_view.webhook_url)
-        await interaction.response.edit_message(view=SkullboardDoneView())
-
-
-class SkullboardDoneView(discord.ui.LayoutView):
-    def __init__(self):
-        super().__init__(timeout=60)
-        self.add_item(discord.ui.Container(
-            discord.ui.TextDisplay("## Skullboard Setup Done"),
-            discord.ui.Separator(),
-            discord.ui.TextDisplay("The Skullboard system has been configured successfully.")
-        ))
+        select.callback = callback
+        view.add_item(select)
+        await interaction.response.send_message(
+            "Select the skullboard channel:",
+            view=view,
+            ephemeral=True
+        )
 
 
 class SkullboardMessageView(discord.ui.View):
@@ -260,72 +65,82 @@ class SkullboardMessageView(discord.ui.View):
 class Skullboard(commands.GroupCog, group_name="skullboard"):
     def __init__(self, bot):
         self.bot = bot
-        self.skullboarded_messages: set[int] = set()
+        self.skullboarded_messages = set()
 
-    def has_admin_access(self, interaction):
-        if interaction.guild is None:
-            return False
-        return interaction.user.id == interaction.guild.owner_id or interaction.user.guild_permissions.administrator
-
-    @staticmethod
-    def sanitize_content(content: str) -> str:
-        if not content:
-            return ""
-        content = re.sub(r"@everyone", "", content, flags=re.IGNORECASE)
-        content = re.sub(r"@here", "", content, flags=re.IGNORECASE)
+    def sanitize_content(self, content):
+        content = re.sub(r"@everyone|@here", "", content, flags=re.IGNORECASE)
         content = re.sub(r"<@!?\d+>", "", content)
         content = re.sub(r"<@&\d+>", "", content)
-        return content
+        return content.strip()
 
-    @classmethod
-    def build_message_content(cls, message: discord.Message) -> str:
-        content = cls.sanitize_content(message.content).strip()
+    def build_message_content(self, message):
+        content = self.sanitize_content(message.content or "")
         if len(content) > 1900:
             content = content[:1897] + "..."
         return content
 
-    @staticmethod
-    async def download_attachments(message: discord.Message) -> list[discord.File]:
+    async def download_attachments(self, message):
         files = []
-        for index, attachment in enumerate(message.attachments):
+        for attachment in message.attachments:
             try:
-                data = await attachment.read(use_cached=True)
-                files.append(discord.File(
-                    io.BytesIO(data),
-                    filename=f"skull_{index}_{attachment.filename}",
-                    description=attachment.description
-                ))
+                data = await attachment.read()
+                files.append(discord.File(io.BytesIO(data), filename=attachment.filename))
             except (discord.NotFound, discord.Forbidden, discord.HTTPException):
                 continue
         return files
 
-    @staticmethod
-    def url_gallery(urls: list[str]) -> discord.ui.MediaGallery | None:
-        if not urls:
+    async def download_stickers(self, message):
+        files = []
+        names = []
+
+        for index, sticker in enumerate(message.stickers):
+            try:
+                url = sticker.url
+                data = await url.read()
+                filename = f"sticker_{index}.png"
+                files.append(discord.File(io.BytesIO(data), filename=filename))
+                names.append(filename)
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                continue
+            except Exception:
+                continue
+
+        return files, names
+
+    def attachment_gallery(self, filenames):
+        if not filenames:
             return None
+
         gallery = discord.ui.MediaGallery()
-        for url in urls:
-            gallery.add_item(discord.MediaGalleryItem(media=url))
+        for filename in filenames:
+            gallery.add_item(
+                discord.MediaGalleryItem(
+                    media=f"attachment://{filename}"
+                )
+            )
         return gallery
 
-    def build_random_components(self, message: discord.Message, files=None):
-        container = discord.ui.Container()
-        content = self.build_message_content(message)
-        author_name = discord.utils.escape_markdown(message.author.display_name)
+    def url_gallery(self, urls):
+        if not urls:
+            return None
 
+        gallery = discord.ui.MediaGallery()
+        for url in urls:
+            gallery.add_item(
+                discord.MediaGalleryItem(media=url)
+            )
+        return gallery
+
+    def build_random_components(self, message):
+        container = discord.ui.Container()
+
+        content = self.build_message_content(message)
         if content:
             container.add_item(discord.ui.TextDisplay(content))
 
         if message.attachments:
-            if files:
-                gallery = discord.ui.MediaGallery()
-                for file in files:
-                    gallery.add_item(discord.MediaGalleryItem(media=f"attachment://{file.filename}"))
-            else:
-                gallery = self.url_gallery([attachment.url for attachment in message.attachments])
-
+            gallery = self.url_gallery([a.url for a in message.attachments])
             if gallery:
-                container.add_item(discord.ui.TextDisplay("### Attachments"))
                 container.add_item(gallery)
 
         if message.stickers:
@@ -333,211 +148,151 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
             for sticker in message.stickers:
                 try:
                     url = str(sticker.url)
+                    if url and not url.endswith(".json"):
+                        sticker_urls.append(url)
                 except Exception:
                     continue
-                if url:
-                    sticker_urls.append(url)
 
             gallery = self.url_gallery(sticker_urls)
-
             if gallery:
                 container.add_item(discord.ui.TextDisplay("### Sticker"))
                 container.add_item(gallery)
 
-        if not content and not message.attachments and not message.stickers:
-            container.add_item(discord.ui.TextDisplay("*No message content*"))
-
-        container.add_item(discord.ui.TextDisplay(f"-# \\- {author_name}"))
-        container.add_item(discord.ui.Separator())
-
-        row = discord.ui.ActionRow()
-        row.add_item(discord.ui.Button(
-            label="Jump to Message",
-            style=discord.ButtonStyle.link,
-            url=message.jump_url
-        ))
-        container.add_item(row)
+        container.add_item(
+            discord.ui.ActionRow(
+                discord.ui.Button(
+                    label="Jump to Message",
+                    style=discord.ButtonStyle.link,
+                    url=message.jump_url
+                )
+            )
+        )
 
         view = discord.ui.LayoutView()
         view.add_item(container)
         return view
 
-    def build_sticker_components(self, message: discord.Message):
-        container = discord.ui.Container()
-        content = self.build_message_content(message)
+    async def build_sticker_components(self, message):
+        files, filenames = await self.download_stickers(message)
+        if not files:
+            return None, []
 
+        container = discord.ui.Container()
+
+        content = self.build_message_content(message)
         if content:
             container.add_item(discord.ui.TextDisplay(content))
 
-        sticker_urls = []
+        container.add_item(discord.ui.TextDisplay("### Sticker"))
 
-        for sticker in message.stickers:
-            try:
-                url = str(sticker.url)
-            except Exception:
-                continue
-            if url:
-                sticker_urls.append(url)
-
-        gallery = self.url_gallery(sticker_urls)
-
+        gallery = self.attachment_gallery(filenames)
         if gallery:
-            container.add_item(discord.ui.TextDisplay("### Sticker"))
             container.add_item(gallery)
 
-        row = discord.ui.ActionRow()
-        row.add_item(discord.ui.Button(
-            label="Jump to Message",
-            style=discord.ButtonStyle.link,
-            url=message.jump_url
-        ))
-        container.add_item(row)
+        container.add_item(
+            discord.ui.ActionRow(
+                discord.ui.Button(
+                    label="Jump to Message",
+                    style=discord.ButtonStyle.link,
+                    url=message.jump_url
+                )
+            )
+        )
 
         view = discord.ui.LayoutView()
         view.add_item(container)
-        return view
+        return view, files
 
-    @app_commands.command(name="setup", description="Set up or edit the server Skullboard system.")
+    @app_commands.command(name="setup", description="Set up the skullboard.")
+    @app_commands.checks.has_permissions(manage_guild=True)
     async def setup(self, interaction: discord.Interaction):
-        if interaction.guild is None:
-            await interaction.response.send_message(embed=error("This command can only be used in a server."), ephemeral=True)
-            return
+        config = await get_skullboard_config(interaction.guild.id)
 
-        if not self.has_admin_access(interaction):
-            await interaction.response.send_message(embed=error("Only the server owner or an administrator can configure Skullboard."), ephemeral=True)
-            return
+        if not config.get("skullboard_threshold"):
+            await set_skullboard_config(
+                interaction.guild.id,
+                "skullboard_threshold",
+                3
+            )
 
-        config = await get_skullboard_config(self.bot.db, interaction.guild.id)
-        view = SkullboardSetupView(self, interaction, config=config)
+        await interaction.response.send_message(
+            embed=success("Choose the channel where skullboard messages should be sent."),
+            view=SkullboardSetupView(self, interaction.guild.id),
+            ephemeral=True
+        )
 
-        if view.webhook_url:
-            try:
-                webhook = discord.Webhook.from_url(view.webhook_url, client=self.bot)
-                fetched = await webhook.fetch()
-                view.webhook_name = fetched.name
-            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-                pass
-
-        await interaction.response.send_message(view=view, ephemeral=True)
-
-    @app_commands.command(name="disable", description="Disable Skullboard for this server.")
+    @app_commands.command(name="disable", description="Disable the skullboard.")
+    @app_commands.checks.has_permissions(manage_guild=True)
     async def disable(self, interaction: discord.Interaction):
-        if interaction.guild is None:
-            await interaction.response.send_message(embed=error("This command can only be used in a server."), ephemeral=True)
-            return
+        await set_skullboard_config(
+            interaction.guild.id,
+            "skullboard_channel_id",
+            None
+        )
+        await set_skullboard_config(
+            interaction.guild.id,
+            "skullboard_webhook_url",
+            None
+        )
+        await interaction.response.send_message(
+            embed=success("Skullboard has been disabled."),
+            ephemeral=True
+        )
 
-        if not self.has_admin_access(interaction):
-            await interaction.response.send_message(embed=error("Only the server owner or an administrator can disable Skullboard."), ephemeral=True)
-            return
+    @app_commands.command(name="random", description="Send a random skullboard message.")
+    async def random(self, interaction: discord.Interaction):
+        config = await get_skullboard_config(interaction.guild.id)
+        channel_id = config.get("skullboard_channel_id")
 
-        config = await get_skullboard_config(self.bot.db, interaction.guild.id)
+        if not channel_id:
+            return await interaction.response.send_message(
+                embed=error("Skullboard is not configured."),
+                ephemeral=True
+            )
 
-        if config:
-            webhook_url = config.get("skullboard_webhook_url")
-            if webhook_url:
-                try:
-                    webhook = discord.Webhook.from_url(webhook_url, client=self.bot)
-                    await webhook.delete(reason="Skullboard disabled")
-                except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-                    pass
+        channel = interaction.guild.get_channel(channel_id)
+        if not channel:
+            return await interaction.response.send_message(
+                embed=error("The configured skullboard channel no longer exists."),
+                ephemeral=True
+            )
 
-        await set_skullboard_config(self.bot.db, interaction.guild.id, None, 0, "")
-        self.skullboarded_messages.clear()
-        await interaction.response.send_message(embed=success("Skullboard has been disabled for this server."), ephemeral=True)
+        messages = [m async for m in channel.history(limit=100)]
+        if not messages:
+            return await interaction.response.send_message(
+                embed=error("There are no skullboard messages."),
+                ephemeral=True
+            )
 
-    @app_commands.command(name="random", description="Show a random message from the Skullboard.")
-    async def random_skullboard(self, interaction: discord.Interaction):
-        if interaction.guild is None:
-            await interaction.response.send_message(embed=error("This command can only be used in a server."), ephemeral=True)
-            return
-
-        config = await get_skullboard_config(self.bot.db, interaction.guild.id)
-
-        if not config:
-            await interaction.response.send_message(embed=error("Skullboard is not configured for this server."), ephemeral=True)
-            return
-
-        skull_channel_id = config.get("skullboard_channel_id")
-        webhook_url = config.get("skullboard_webhook_url")
-
-        if not skull_channel_id or not webhook_url:
-            await interaction.response.send_message(embed=error("Skullboard is not fully configured for this server."), ephemeral=True)
-            return
-
-        skull_channel = self.bot.get_channel(skull_channel_id)
-
-        if skull_channel is None:
-            try:
-                skull_channel = await self.bot.fetch_channel(skull_channel_id)
-            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-                await interaction.response.send_message(embed=error("I couldn't access the configured Skullboard channel."), ephemeral=True)
-                return
-
-        if not isinstance(skull_channel, discord.TextChannel):
-            await interaction.response.send_message(embed=error("The configured Skullboard channel is invalid."), ephemeral=True)
-            return
+        message = random.choice(messages)
 
         await interaction.response.defer()
 
-        webhook = discord.Webhook.from_url(webhook_url, client=self.bot)
-
-        try:
-            webhook_data = await webhook.fetch()
-            webhook_id = webhook_data.id
-        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-            webhook_id = None
-
-        messages = []
-
-        try:
-            async for message in skull_channel.history(limit=500):
-                if webhook_id is None or message.webhook_id == webhook_id:
-                    messages.append(message)
-        except (discord.Forbidden, discord.HTTPException):
-            await interaction.followup.send(embed=error("I couldn't read the Skullboard channel."), ephemeral=True)
-            return
-
-        if not messages:
-            await interaction.followup.send(embed=error("There are no Skullboard messages to choose from."), ephemeral=True)
-            return
-
-        message = random.choice(messages)
         view = self.build_random_components(message)
 
-        await interaction.followup.send(
-            view=view,
-            allowed_mentions=discord.AllowedMentions.none()
-        )
+        await interaction.followup.send(view=view)
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
-        if payload.guild_id is None or str(payload.emoji) != SKULL_EMOJI:
+        if str(payload.emoji) != SKULL_EMOJI:
             return
 
-        config = await get_skullboard_config(self.bot.db, payload.guild_id)
-
-        if not config:
+        if payload.guild_id is None:
             return
 
-        skull_channel_id = config.get("skullboard_channel_id")
-        threshold = config.get("skullboard_threshold")
+        config = await get_skullboard_config(payload.guild_id)
+        channel_id = config.get("skullboard_channel_id")
+        threshold = config.get("skullboard_threshold", 3)
         webhook_url = config.get("skullboard_webhook_url")
 
-        if not skull_channel_id or not threshold or not webhook_url:
+        if not channel_id or not webhook_url:
             return
 
-        if payload.channel_id == skull_channel_id or payload.message_id in self.skullboarded_messages:
+        if payload.channel_id == channel_id:
             return
 
         channel = self.bot.get_channel(payload.channel_id)
-
         if channel is None:
-            try:
-                channel = await self.bot.fetch_channel(payload.channel_id)
-            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-                return
-
-        if not isinstance(channel, discord.TextChannel):
             return
 
         try:
@@ -545,37 +300,32 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
         except (discord.NotFound, discord.Forbidden, discord.HTTPException):
             return
 
-        skull_reaction = next(
-            (reaction for reaction in message.reactions if str(reaction.emoji) == SKULL_EMOJI),
-            None
-        )
-
-        if skull_reaction is None or skull_reaction.count < threshold:
+        reaction = discord.utils.get(message.reactions, emoji=SKULL_EMOJI)
+        if reaction is None or reaction.count < threshold:
             return
 
-        skull_channel = self.bot.get_channel(skull_channel_id)
-
-        if skull_channel is None:
-            try:
-                skull_channel = await self.bot.fetch_channel(skull_channel_id)
-            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-                return
-
-        if not isinstance(skull_channel, discord.TextChannel):
+        if message.id in self.skullboarded_messages:
             return
+
+        self.skullboarded_messages.add(message.id)
 
         try:
-            webhook = discord.Webhook.from_url(webhook_url, client=self.bot)
-        except Exception:
-            return
+            webhook = discord.Webhook.from_url(
+                webhook_url,
+                session=self.bot.http._HTTPClient__session
+            )
 
-        try:
             if message.stickers:
-                view = self.build_sticker_components(message)
+                view, files = await self.build_sticker_components(message)
+
+                if view is None:
+                    self.skullboarded_messages.discard(message.id)
+                    return
 
                 await webhook.send(
                     username=message.author.display_name,
                     avatar_url=message.author.display_avatar.url,
+                    files=files,
                     view=view,
                     allowed_mentions=discord.AllowedMentions.none(),
                     wait=True
@@ -594,12 +344,12 @@ class Skullboard(commands.GroupCog, group_name="skullboard"):
                     allowed_mentions=discord.AllowedMentions.none(),
                     wait=True
                 )
-        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-            return
 
-        self.skullboarded_messages.add(message.id)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            self.skullboarded_messages.discard(message.id)
+        except Exception:
+            self.skullboarded_messages.discard(message.id)
 
 
 async def setup(bot):
-    skullboard = Skullboard(bot)
-    await bot.add_cog(skullboard)
+    await bot.add_cog(Skullboard(bot))
