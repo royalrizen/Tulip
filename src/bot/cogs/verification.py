@@ -7,7 +7,7 @@ from bot.database import get_verification_config, set_verification_config
 from bot.utils import success, error
 
 VERIFICATION_ROLE_ID = 1151747087675949107
-VERIFICATION_IMAGE = "https://cdn.discordapp.com/attachments/1265641315690090577/1556928555739512873/banner.jpg?backend=b2&ex=6ac5f236&is=6ac4a0b6&hm=24773f1b6a61f1abccfc3dd0b04c1489432f64a7129cab90a10442ef62a74e5b"
+VERIFICATION_IMAGE = "https://cdn.discordapp.com/attachments/1265641315690090577/1556934573391093790/banner.jpg?backend=b2&ex=6ac5f7d0&is=6ac4a650&hm=273fc29b5f8a6284306d55e2dc598b7a5f44b2ff0b514e4bdbc5bd77a50e3879"
 
 class VerificationView(discord.ui.LayoutView):
     def __init__(self):
