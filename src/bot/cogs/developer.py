@@ -1,5 +1,9 @@
+import os
+import time
+
 import aiohttp
 import discord
+import psutil
 from discord import app_commands
 from discord.ext import commands
 
@@ -41,6 +45,159 @@ class Developer(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.bot.start_time = getattr(
+            self.bot,
+            "start_time",
+            time.monotonic(),
+        )
+
+    def get_cogs(self):
+        path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "cogs",
+        )
+
+        if not os.path.isdir(path):
+            return []
+
+        return sorted(
+            file[:-3]
+            for file in os.listdir(path)
+            if file.endswith(".py")
+            and file != "__init__.py"
+        )
+
+    async def cog_autocomplete(
+        self,
+        interaction: discord.Interaction,
+        current: str,
+    ):
+        cogs = self.get_cogs()
+        current = current.lower()
+
+        return [
+            app_commands.Choice(name=cog, value=cog)
+            for cog in cogs
+            if current in cog.lower()
+        ][:25]
+
+    @dev.command(
+        name="load",
+        description="Load a cog.",
+    )
+    @app_commands.check(is_bot_owner)
+    @app_commands.autocomplete(cog=cog_autocomplete)
+    async def load(
+        self,
+        interaction: discord.Interaction,
+        cog: str,
+    ):
+        extension = f"bot.cogs.{cog}"
+
+        try:
+            await self.bot.load_extension(extension)
+        except commands.ExtensionAlreadyLoaded:
+            await interaction.response.send_message(
+                embed=error(f"`{cog}` is already loaded."),
+                ephemeral=True,
+            )
+            return
+        except commands.ExtensionNotFound:
+            await interaction.response.send_message(
+                embed=error(f"Cog `{cog}` was not found."),
+                ephemeral=True,
+            )
+            return
+        except commands.ExtensionError as e:
+            await interaction.response.send_message(
+                embed=error(f"Failed to load `{cog}`:\n`{e}`"),
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.send_message(
+            embed=success(f"Loaded `{cog}`."),
+            ephemeral=True,
+        )
+
+    @dev.command(
+        name="unload",
+        description="Unload a cog.",
+    )
+    @app_commands.check(is_bot_owner)
+    @app_commands.autocomplete(cog=cog_autocomplete)
+    async def unload(
+        self,
+        interaction: discord.Interaction,
+        cog: str,
+    ):
+        extension = f"bot.cogs.{cog}"
+
+        if extension == self.__module__:
+            await interaction.response.send_message(
+                embed=error("The Developer cog cannot unload itself."),
+                ephemeral=True,
+            )
+            return
+
+        try:
+            await self.bot.unload_extension(extension)
+        except commands.ExtensionNotLoaded:
+            await interaction.response.send_message(
+                embed=error(f"`{cog}` is not loaded."),
+                ephemeral=True,
+            )
+            return
+        except commands.ExtensionError as e:
+            await interaction.response.send_message(
+                embed=error(f"Failed to unload `{cog}`:\n`{e}`"),
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.send_message(
+            embed=success(f"Unloaded `{cog}`."),
+            ephemeral=True,
+        )
+
+    @dev.command(
+        name="reload",
+        description="Reload a cog.",
+    )
+    @app_commands.check(is_bot_owner)
+    @app_commands.autocomplete(cog=cog_autocomplete)
+    async def reload(
+        self,
+        interaction: discord.Interaction,
+        cog: str,
+    ):
+        extension = f"bot.cogs.{cog}"
+
+        try:
+            await self.bot.reload_extension(extension)
+        except commands.ExtensionNotLoaded:
+            await interaction.response.send_message(
+                embed=error(f"`{cog}` is not loaded."),
+                ephemeral=True,
+            )
+            return
+        except commands.ExtensionNotFound:
+            await interaction.response.send_message(
+                embed=error(f"Cog `{cog}` was not found."),
+                ephemeral=True,
+            )
+            return
+        except commands.ExtensionError as e:
+            await interaction.response.send_message(
+                embed=error(f"Failed to reload `{cog}`:\n`{e}`"),
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.send_message(
+            embed=success(f"Reloaded `{cog}`."),
+            ephemeral=True,
+        )
 
     @dev.command(
         name="logging",
@@ -99,7 +256,8 @@ class Developer(commands.Cog):
 
         await interaction.response.send_message(
             embed=success(
-                f"**Model storage** set to {channel.mention} with **`{interval}`** minutes interval."
+                f"**Model storage** set to {channel.mention} with "
+                f"**`{interval}`** minutes interval."
             ),
             ephemeral=True,
         )
@@ -154,6 +312,7 @@ class Developer(commands.Cog):
 
         try:
             colors = [parse_color(color1)]
+
             if color2:
                 colors.append(parse_color(color2))
         except ValueError:
@@ -174,7 +333,7 @@ class Developer(commands.Cog):
         }
 
         url = (
-            f"https://discord.com/api/v10"
+            "https://discord.com/api/v10"
             f"/guilds/{interaction.guild.id}/members/@me"
         )
 
@@ -221,6 +380,82 @@ class Developer(commands.Cog):
                 ephemeral=True,
             )
 
+    @dev.command(
+        name="stats",
+        description="Show bot statistics.",
+    )
+    @app_commands.check(is_bot_owner)
+    async def stats(
+        self,
+        interaction: discord.Interaction,
+    ):
+        process = psutil.Process(os.getpid())
+
+        memory = process.memory_info().rss / 1024 / 1024
+        cpu = process.cpu_percent()
+        latency = self.bot.latency * 1000
+        uptime = int(time.monotonic() - self.bot.start_time)
+
+        days, remainder = divmod(uptime, 86400)
+        hours, remainder = divmod(remainder, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        embed = discord.Embed(
+            title="Bot Statistics",
+            color=discord.Color.blurple(),
+        )
+
+        embed.add_field(
+            name="Ping",
+            value=f"`{latency:.0f} ms`",
+            inline=True,
+        )
+        embed.add_field(
+            name="Uptime",
+            value=f"`{days}d {hours}h {minutes}m {seconds}s`",
+            inline=True,
+        )
+        embed.add_field(
+            name="Status",
+            value=f"`{str(self.bot.status).title()}`",
+            inline=True,
+        )
+        embed.add_field(
+            name="CPU",
+            value=f"`{cpu:.1f}%`",
+            inline=True,
+        )
+        embed.add_field(
+            name="Memory",
+            value=f"`{memory:.1f} MB`",
+            inline=True,
+        )
+        embed.add_field(
+            name="Guilds",
+            value=f"`{len(self.bot.guilds)}`",
+            inline=True,
+        )
+        embed.add_field(
+            name="Users",
+            value=f"`{len(self.bot.users)}`",
+            inline=True,
+        )
+        embed.add_field(
+            name="Cogs",
+            value=f"`{len(self.bot.cogs)}`",
+            inline=True,
+        )
+        embed.add_field(
+            name="Extensions",
+            value=f"`{len(self.bot.extensions)}`",
+            inline=True,
+        )
+
+        await interaction.response.send_message(
+            embed=embed,
+            ephemeral=True,
+        )
+
     @logging.error
     async def logging_error(
         self,
@@ -229,9 +464,7 @@ class Developer(commands.Cog):
     ):
         if isinstance(exception, app_commands.CheckFailure):
             await interaction.response.send_message(
-                embed=error(
-                    "You don't have permission to use this command."
-                ),
+                embed=error("You don't have permission to use this command."),
                 ephemeral=True,
             )
 
@@ -243,9 +476,7 @@ class Developer(commands.Cog):
     ):
         if isinstance(exception, app_commands.CheckFailure):
             await interaction.response.send_message(
-                embed=error(
-                    "You don't have permission to use this command."
-                ),
+                embed=error("You don't have permission to use this command."),
                 ephemeral=True,
             )
 
@@ -257,11 +488,58 @@ class Developer(commands.Cog):
     ):
         if isinstance(exception, app_commands.CheckFailure):
             await interaction.response.send_message(
-                embed=error(
-                    "You don't have permission to use this command."
-                ),
+                embed=error("You don't have permission to use this command."),
                 ephemeral=True,
             )
+
+    @load.error
+    async def load_error(
+        self,
+        interaction: discord.Interaction,
+        exception: app_commands.AppCommandError,
+    ):
+        if isinstance(exception, app_commands.CheckFailure):
+            await interaction.response.send_message(
+                embed=error("You don't have permission to use this command."),
+                ephemeral=True,
+            )
+
+    @unload.error
+    async def unload_error(
+        self,
+        interaction: discord.Interaction,
+        exception: app_commands.AppCommandError,
+    ):
+        if isinstance(exception, app_commands.CheckFailure):
+            await interaction.response.send_message(
+                embed=error("You don't have permission to use this command."),
+                ephemeral=True,
+            )
+
+    @reload.error
+    async def reload_error(
+        self,
+        interaction: discord.Interaction,
+        exception: app_commands.AppCommandError,
+    ):
+        if isinstance(exception, app_commands.CheckFailure):
+            await interaction.response.send_message(
+                embed=error("You don't have permission to use this command."),
+                ephemeral=True,
+            )
+
+    @stats.error
+    async def stats_error(
+        self,
+        interaction: discord.Interaction,
+        exception: app_commands.AppCommandError,
+    ):
+        if isinstance(exception, app_commands.CheckFailure):
+            await interaction.response.send_message(
+                embed=error("You don't have permission to use this command."),
+                ephemeral=True,
+            )
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Developer(bot))
