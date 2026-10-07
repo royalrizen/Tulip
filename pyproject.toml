@@ -14,6 +14,7 @@ dependencies = [
     "aiomysql",
     "cryptography",
     "Flask",
+    "psutil",
 ]
 
 [tool.setuptools.packages.find]
