@@ -4,11 +4,17 @@ This is the source code for a small Discord bot made with **discord.py** library
 
 ## Features
 Currently I've added,
+
+1. For Developers -
 - Logging: This sends all the logging messages printed on console directly to a Discord channel. Only bot owner can set it.
+- Display Name Style: You can setup how the bot's display name looks like.
+- Cogs Loading/Unloading/Reloading: So you don't have to redeploy the bot everytime.
+- Stats: Check Bot's stats such as ping, etc.
+- ~~Tiny LLM: For training a small AI.~~
+
+2. For Users -
 - Verification: This one's exclusive to my server so if you want to use it please update the role id, messages, etc yourself.
 - Skullboard: Similar to starboard which you've often seen in servers.
-- ~~Tiny LLM: For training a small AI.~~
-- Display Name Style: You can setup how the bot's display name looks like.
 - Anime Searcher: You can find the exact episode and name of any anime just by uploading screenshot of a scene.
 
 ## Things to note when self hosting
