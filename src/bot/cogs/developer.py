@@ -1,5 +1,6 @@
 import os
 import time
+
 import aiohttp
 import discord
 import psutil
@@ -35,6 +36,7 @@ EFFECTS = {
     5: "Pop",
     6: "Glow",
 }
+
 
 class Developer(commands.Cog):
     dev = app_commands.Group(
@@ -116,7 +118,6 @@ class Developer(commands.Cog):
 
         await interaction.response.send_message(
             embed=success(f"Loaded `{cog}`."),
-            ephemeral=True,
         )
 
     @dev.command(
@@ -156,7 +157,6 @@ class Developer(commands.Cog):
 
         await interaction.response.send_message(
             embed=success(f"Unloaded `{cog}`."),
-            ephemeral=True,
         )
 
     @dev.command(
@@ -195,7 +195,6 @@ class Developer(commands.Cog):
 
         await interaction.response.send_message(
             embed=success(f"Reloaded `{cog}`."),
-            ephemeral=True,
         )
 
     @dev.command(
@@ -225,7 +224,6 @@ class Developer(commands.Cog):
             embed=success(
                 f"Logging channel set to {channel.mention}."
             ),
-            ephemeral=True,
         )
 
     @dev.command(
@@ -258,7 +256,6 @@ class Developer(commands.Cog):
                 f"**Model storage** set to {channel.mention} with "
                 f"**`{interval}`** minutes interval."
             ),
-            ephemeral=True,
         )
 
     @dev.command(
@@ -341,7 +338,7 @@ class Developer(commands.Cog):
             "Content-Type": "application/json",
         }
 
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer()
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -370,7 +367,6 @@ class Developer(commands.Cog):
                             f"**Colors:** "
                             f"`{', '.join(f'#{c:06X}' for c in colors)}`"
                         ),
-                        ephemeral=True,
                     )
 
         except Exception as e:
@@ -452,7 +448,6 @@ class Developer(commands.Cog):
 
         await interaction.response.send_message(
             embed=embed,
-            ephemeral=True,
         )
 
     @logging.error
